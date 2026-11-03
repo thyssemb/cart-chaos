@@ -110,8 +110,10 @@ export function stepAvatar(
   const aim = Number.isFinite(input.yaw) ? input.yaw : body.yaw
   const f = clamp(input.forward, -1, 1)
   const strafe = clamp(input.strafe, -1, 1)
-  let wx = Math.sin(aim) * f + Math.cos(aim) * strafe
-  let wz = Math.cos(aim) * f - Math.sin(aim) * strafe
+  // yaw 0 looks along +Z. On a Three.js camera, screen-right is (-cos yaw, sin yaw):
+  // positive strafe (D / right arrow) moves and faces that way, negative strafe the other.
+  let wx = Math.sin(aim) * f - Math.cos(aim) * strafe
+  let wz = Math.cos(aim) * f + Math.sin(aim) * strafe
   const len = Math.hypot(wx, wz)
   if (len > 1) {
     wx /= len

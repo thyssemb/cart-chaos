@@ -115,6 +115,68 @@ describe('carte et déplacement', () => {
     expect(turnToward(0, -Math.PI + 0.1, 0.3)).toBeCloseTo(-0.3)
   })
 
+  it('avance, recule, strafe et tourne du côté demandé par la caméra', () => {
+    const spot = { x: -3.2, z: -6.2 }
+    const wish = (aim: number, forward: number, strafe: number) => {
+      let x = Math.sin(aim) * forward - Math.cos(aim) * strafe
+      let z = Math.cos(aim) * forward + Math.sin(aim) * strafe
+      const len = Math.hypot(x, z) || 1
+      return { x: x / len, z: z / len }
+    }
+    const gap = (from: number, to: number) => {
+      let delta = to - from
+      while (delta > Math.PI) delta -= Math.PI * 2
+      while (delta < -Math.PI) delta += Math.PI * 2
+      return delta
+    }
+    for (const aim of [0, 0.85, -1.4, Math.PI * 0.92]) {
+      const samples = [
+        { forward: 1, strafe: 0 },
+        { forward: -1, strafe: 0 },
+        { forward: 0, strafe: 1 },
+        { forward: 0, strafe: -1 },
+        { forward: 1, strafe: 1 },
+        { forward: 1, strafe: -1 },
+        { forward: -1, strafe: 1 },
+        { forward: -1, strafe: -1 },
+      ]
+      for (const sample of samples) {
+        const dir = wish(aim, sample.forward, sample.strafe)
+        const body: Body = { x: spot.x, y: 0, z: spot.z, vx: 0, vy: 0, vz: 0, yaw: aim, grounded: true }
+        const before = gap(aim, Math.atan2(dir.x, dir.z))
+        stepAvatar(body, { ...zeroInput(aim), ...sample }, 0.05, OBSTACLES, { holding: false, slow: false })
+        const moved = body.vx * dir.x + body.vz * dir.z
+        expect(moved).toBeGreaterThan(0.2)
+        expect(Math.abs(body.vx * dir.z - body.vz * dir.x)).toBeLessThan(0.05)
+        if (Math.abs(before) > 0.2) {
+          const after = gap(body.yaw, Math.atan2(dir.x, dir.z))
+          expect(Math.abs(after)).toBeLessThan(Math.abs(before))
+          expect(Math.sign(body.yaw - aim)).toBe(Math.sign(before))
+        }
+      }
+    }
+
+    const straight: Body = { x: spot.x, y: 0, z: spot.z, vx: 0, vy: 0, vz: 0, yaw: 0, grounded: true }
+    for (let i = 0; i < 20; i += 1) stepAvatar(straight, { ...zeroInput(0), forward: 1 }, 0.05, OBSTACLES, { holding: false, slow: false })
+    const carried = straight.vz
+    stepAvatar(straight, { ...zeroInput(Math.PI / 2), forward: 1 }, 0.05, OBSTACLES, { holding: false, slow: false })
+    expect(straight.vx).toBeGreaterThan(0.4)
+    expect(straight.vz).toBeLessThan(carried)
+    expect(straight.yaw).toBeGreaterThan(0.2)
+    expect(straight.yaw).toBeLessThan(1.2)
+
+    const about: Body = { x: spot.x, y: 0, z: 2, vx: 0, vy: 0, vz: 7, yaw: 0, grounded: true }
+    stepAvatar(about, { ...zeroInput(0), forward: -1 }, 0.05, OBSTACLES, { holding: false, slow: false })
+    expect(about.vz).toBeLessThan(4)
+    const turn = Math.sign(about.yaw)
+    expect(Math.abs(about.yaw)).toBeGreaterThan(0.3)
+    expect(Math.abs(about.yaw)).toBeLessThan(1)
+    for (let i = 0; i < 30; i += 1) stepAvatar(about, { ...zeroInput(0), forward: -1 }, 0.05, OBSTACLES, { holding: false, slow: false })
+    expect(about.vz).toBeLessThan(-4)
+    expect(Math.sign(about.yaw)).toBe(turn)
+    expect(Math.abs(Math.abs(about.yaw) - Math.PI)).toBeLessThan(0.2)
+  })
+
   it('n’éjecte pas hors du magasin', () => {
     const body: Body = { x: 3.5, y: 0, z: -1, vx: 0, vy: 0, vz: 0, yaw: 0, grounded: true }
     const input = { ...zeroInput(0), forward: 1, sprint: true }
