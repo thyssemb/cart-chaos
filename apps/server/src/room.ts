@@ -254,7 +254,7 @@ export class Room {
   start(playerId: string) {
     if (this.phase !== 'lobby' && this.phase !== 'results') return { ok: false, error: 'Pas maintenant' }
     if (!this.canControl(playerId)) return { ok: false, error: 'Seul l’hôte peut lancer' }
-    if (this.connectedCount() < MIN_PLAYERS) return { ok: false, error: 'Il faut au moins 2 joueurs' }
+    if (this.connectedCount() < MIN_PLAYERS) return { ok: false, error: 'Il faut au moins 1 joueur' }
     this.beginRound()
     return { ok: true }
   }

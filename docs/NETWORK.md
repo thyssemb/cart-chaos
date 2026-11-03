@@ -15,7 +15,7 @@ En développement, le client est sur `http://localhost:5173` et proxyfie `/socke
 | `rejoin` | `{ code, token }` | ack |
 | `ready` | | ack |
 | `color` | `{ colorId }` | ack |
-| `start` | | ack, hôte, au moins 2 joueurs |
+| `start` | | ack, hôte, au moins 1 joueur |
 | `rematch` | | ack, même règle |
 | `leave` | | ack |
 | `input` | `{ seq, forward, strafe, yaw, sprint, jump, interactHeld }` | sans ack, plafond 40/s |

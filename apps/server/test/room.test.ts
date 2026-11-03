@@ -19,13 +19,13 @@ function pair() {
 }
 
 describe('manche', () => {
-  it('refuse de lancer à un seul joueur et enchaîne lobby, compte à rebours, jeu, résultats', () => {
+  it('lance à un seul joueur puis enchaîne compte à rebours, jeu et résultats', () => {
     const room = new Room('SOLO')
     const only = room.addPlayer('Nino')
     if (!only.ok) throw new Error('joueur')
-    expect(room.start(only.player.id).ok).toBe(false)
-    room.addPlayer('Mia')
-    play(room)
+    expect(room.start(only.player.id).ok).toBe(true)
+    room.tick(3000)
+    expect(room.phase).toBe('playing')
     expect(room.timeLeftMs).toBe(MATCH_MS)
     room.timeLeftMs = 80
     room.tick(100)

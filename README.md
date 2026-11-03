@@ -1,6 +1,6 @@
 # CART CHAOS
 
-Party game arcade 3D, multijoueur, dans le navigateur. Deux à six joueurs, trois minutes, un caddie chacun.
+Party game arcade 3D, multijoueur, dans le navigateur. Un à six joueurs, trois minutes, un caddie chacun. Tu peux lancer seul pour tester.
 
 Grab it. Steal it. Checkout.
 
@@ -11,7 +11,7 @@ Grab it. Steal it. Checkout.
 
 ## Lancer en local
 
-Deux fenêtres du même navigateur sur la même adresse suffisent : l’une crée le salon, l’autre entre le code.
+Une fenêtre suffit : crée le salon, puis lance la manche. Pour jouer à plusieurs, ouvre une deuxième fenêtre sur la même adresse et entre le code.
 
 ```bash
 cd cart-chaos

@@ -1,6 +1,6 @@
 # Règles — CART CHAOS
 
-Manche de 3 minutes, 2 à 6 joueurs. Le serveur fait foi.
+Manche de 3 minutes, 1 à 6 joueurs. Un joueur seul peut lancer pour tester. Le serveur fait foi.
 
 ## Objectif
 

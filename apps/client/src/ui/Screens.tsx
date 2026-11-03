@@ -1,4 +1,4 @@
-import { COLORS, MAX_PLAYERS } from '@cart-chaos/shared'
+import { COLORS, MAX_PLAYERS, MIN_PLAYERS } from '@cart-chaos/shared'
 import { useState } from 'react'
 import { playUi, syncAudio } from '../audio'
 import { createRoom, joinRoom, sendColor, sendLeave, sendReady, sendStart } from '../net'
@@ -184,7 +184,8 @@ export function Lobby() {
   if (!room) return null
   const me = room.players.find((player) => player.id === playerId)
   const hostOnline = room.players.some((player) => player.host && player.connected)
-  const canStart = Boolean(me && (!hostOnline || me.host) && room.players.filter((player) => player.connected).length >= 2)
+  const connected = room.players.filter((player) => player.connected).length
+  const canStart = Boolean(me && (!hostOnline || me.host) && connected >= MIN_PLAYERS)
 
   return (
     <div className="absolute inset-0 grid place-items-center p-4">
@@ -204,7 +205,7 @@ export function Lobby() {
           </button>
         </div>
         <p className="mt-1 text-sm text-cream/70">
-          {room.players.filter((player) => player.connected).length}/{MAX_PLAYERS} joueurs · deux fenêtres sur http://localhost:5173 suffisent
+          {connected}/{MAX_PLAYERS} joueurs · lance seul pour tester, ou partage le code pour jouer à plusieurs
         </p>
         <ul className="mt-4 space-y-2">
           {room.players.map((player) => {
