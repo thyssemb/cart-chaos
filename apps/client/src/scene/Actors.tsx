@@ -85,6 +85,13 @@ export function CharacterModel({ id, colorId, name }: { id: string; colorId?: st
   const armL = useRef<Group>(null)
   const armR = useRef<Group>(null)
   const phase = useRef(0)
+  const swing = useRef(0)
+  const arms = useRef(0)
+  const lean = useRef(0)
+  const squash = useRef(1)
+  const land = useRef(0)
+  const prevGround = useRef(true)
+  const prevYaw = useRef(0)
   const storeColor = useGame((state) => state.room?.players.find((player) => player.id === id)?.colorId)
   const storeName = useGame((state) => state.room?.players.find((player) => player.id === id)?.name)
   const palette = colorById(colorId ?? storeColor ?? 'coral')
@@ -97,29 +104,57 @@ export function CharacterModel({ id, colorId, name }: { id: string; colorId?: st
     const pose = views.players.get(id)
     if (!group.current || !pose) return
     group.current.visible = pose.connected
-    group.current.position.set(pose.x, pose.y, pose.z)
-    group.current.rotation.y = pose.yaw
+    const grounded = pose.grounded && pose.y < 0.08
+    if (prevGround.current && !grounded) land.current = 0
+    if (!prevGround.current && grounded) land.current = 0.18
+    prevGround.current = grounded
+    land.current = Math.max(0, land.current - dt)
     const speed = pose.speed
-    phase.current += dt * (pose.celebrate ? 8 : 2.2 + speed * 1.6)
-    const swing = pose.grounded && speed > 0.25 ? Math.sin(phase.current) * Math.min(0.85, 0.2 + speed * 0.12) : 0
+    const running = speed > 5.5
+    const pushing = pose.holding
+    if (grounded && speed > 0.35) phase.current += dt * (pose.celebrate ? 8 : running ? 11 : 7.2)
+    const blend = 1 - Math.exp(-11 * dt)
+    const targetSwing = grounded && speed > 0.3 && !pose.celebrate ? Math.sin(phase.current) * (running ? 0.9 : 0.55) : 0
+    swing.current += (targetSwing - swing.current) * blend
+    let armTarget = -swing.current
+    if (!grounded) armTarget = pose.y > 0.2 ? -0.85 : 0.35
+    if (pushing) armTarget = -1.02
+    if (pose.carrying && !pushing) armTarget = -1.15
+    arms.current += (armTarget - arms.current) * blend
+    let yawDelta = pose.yaw - prevYaw.current
+    while (yawDelta > Math.PI) yawDelta -= Math.PI * 2
+    while (yawDelta < -Math.PI) yawDelta += Math.PI * 2
+    prevYaw.current = pose.yaw
+    const leanTarget = Math.max(-0.22, Math.min(0.22, (-yawDelta / Math.max(dt, 0.016)) * 0.045))
+    lean.current += (leanTarget - lean.current) * blend
+    const bob = grounded && speed > 0.45 ? Math.abs(Math.sin(phase.current)) * (running ? 0.075 : 0.04) : pose.celebrate ? Math.abs(Math.sin(phase.current)) * 0.16 : 0
+    const squashTarget = pose.hit ? 0.76 : land.current > 0 ? 0.84 : 1
+    squash.current += (squashTarget - squash.current) * blend
+    group.current.position.set(pose.x, pose.y + bob, pose.z)
+    group.current.rotation.y = pose.yaw
+    group.current.rotation.z = pushing ? lean.current * 0.45 : lean.current
+    group.current.scale.set(pose.hit ? 1.12 : 1, squash.current, pose.hit ? 1.12 : 1)
     if (legL.current && legR.current) {
-      if (!pose.grounded) {
-        legL.current.rotation.x = -0.5
-        legR.current.rotation.x = 0.35
+      if (!grounded) {
+        const rising = pose.y > 0.12
+        legL.current.rotation.x = rising ? -0.95 : 0.2
+        legR.current.rotation.x = rising ? -0.45 : -0.15
       } else if (pose.celebrate) {
-        legL.current.rotation.x = -0.4
-        legR.current.rotation.x = -0.2
-        group.current.position.y = pose.y + Math.abs(Math.sin(phase.current)) * 0.18
+        legL.current.rotation.x = -0.45
+        legR.current.rotation.x = -0.15
       } else {
-        legL.current.rotation.x = swing
-        legR.current.rotation.x = -swing
+        legL.current.rotation.x = swing.current
+        legR.current.rotation.x = -swing.current
       }
     }
-    const push = pose.holding ? -1.15 : 0
-    if (armL.current) armL.current.rotation.x = pose.holding ? push : pose.carrying ? -0.35 : -swing
-    if (armR.current) armR.current.rotation.x = pose.holding ? push : pose.carrying ? -1.25 : swing
-    const squash = pose.hit ? 0.78 : 1
-    group.current.scale.set(pose.hit ? 1.14 : 1, squash, pose.hit ? 1.14 : 1)
+    if (armL.current) {
+      armL.current.rotation.x = pushing || !pose.carrying ? arms.current : -0.35
+      armL.current.position.z = pushing ? 0.08 : pose.carrying ? 0.08 : 0
+    }
+    if (armR.current) {
+      armR.current.rotation.x = pushing ? arms.current : pose.carrying ? -1.2 : -arms.current
+      armR.current.position.z = pushing ? 0.08 : pose.carrying ? 0.32 : 0
+    }
     const faceMesh = group.current.getObjectByName('face') as Mesh | undefined
     if (faceMesh && Array.isArray(faceMesh.material) === false) {
       const material = faceMesh.material as { map?: unknown }
@@ -130,19 +165,27 @@ export function CharacterModel({ id, colorId, name }: { id: string; colorId?: st
   return (
     <group ref={group}>
       <group ref={legL} position={[-0.14, 0.46, 0]}>
-        <mesh position={[0, -0.2, 0]} castShadow>
-          <boxGeometry args={[0.16, 0.42, 0.18]} />
+        <mesh position={[0, -0.22, 0]} castShadow>
+          <boxGeometry args={[0.16, 0.46, 0.18]} />
           <meshStandardMaterial color={palette.skin} />
+        </mesh>
+        <mesh position={[0, -0.46, 0.04]}>
+          <boxGeometry args={[0.18, 0.1, 0.28]} />
+          <meshStandardMaterial color="#2b3038" />
         </mesh>
       </group>
       <group ref={legR} position={[0.14, 0.46, 0]}>
-        <mesh position={[0, -0.2, 0]} castShadow>
-          <boxGeometry args={[0.16, 0.42, 0.18]} />
+        <mesh position={[0, -0.22, 0]} castShadow>
+          <boxGeometry args={[0.16, 0.46, 0.18]} />
           <meshStandardMaterial color={palette.skin} />
         </mesh>
+        <mesh position={[0, -0.46, 0.04]}>
+          <boxGeometry args={[0.18, 0.1, 0.28]} />
+          <meshStandardMaterial color="#2b3038" />
+        </mesh>
       </group>
-      <mesh position={[0, 0.9, 0]} castShadow>
-        <boxGeometry args={[0.52, 0.52, 0.32]} />
+      <mesh position={[0, 0.92, 0]} castShadow>
+        <boxGeometry args={[0.58, 0.5, 0.34]} />
         <meshStandardMaterial map={overalls} />
       </mesh>
       <mesh position={[0, 1.05, 0.13]}>
@@ -157,51 +200,51 @@ export function CharacterModel({ id, colorId, name }: { id: string; colorId?: st
         <cylinderGeometry args={[0.045, 0.045, 0.04, 6]} />
         <meshStandardMaterial color="#e2b15a" />
       </mesh>
-      <mesh position={[0, 1.52, 0]} castShadow>
-        <boxGeometry args={[0.72, 0.6, 0.64]} />
+      <mesh position={[0, 1.58, 0]} castShadow>
+        <boxGeometry args={[0.86, 0.7, 0.72]} />
         <meshStandardMaterial color={palette.skin} />
       </mesh>
-      <mesh name="face" position={[0, 1.5, 0.33]}>
-        <planeGeometry args={[0.52, 0.42]} />
+      <mesh name="face" position={[0, 1.56, 0.37]}>
+        <planeGeometry args={[0.62, 0.5]} />
         <meshBasicMaterial map={face} transparent toneMapped={false} />
       </mesh>
-      <mesh position={[0, 1.88, -0.02]} castShadow>
-        <boxGeometry args={[0.8, 0.28, 0.7]} />
+      <mesh position={[0, 1.98, -0.02]} castShadow>
+        <boxGeometry args={[0.92, 0.28, 0.78]} />
         <meshStandardMaterial color={palette.hair} />
       </mesh>
-      <mesh position={[-0.38, 1.58, -0.02]}>
-        <boxGeometry args={[0.16, 0.46, 0.66]} />
+      <mesh position={[-0.44, 1.62, -0.02]}>
+        <boxGeometry args={[0.16, 0.5, 0.74]} />
         <meshStandardMaterial color={palette.hair} />
       </mesh>
-      <mesh position={[0.38, 1.58, -0.02]}>
-        <boxGeometry args={[0.16, 0.46, 0.66]} />
+      <mesh position={[0.44, 1.62, -0.02]}>
+        <boxGeometry args={[0.16, 0.5, 0.74]} />
         <meshStandardMaterial color={palette.hair} />
       </mesh>
-      <mesh position={[0, 1.55, -0.3]}>
-        <boxGeometry args={[0.74, 0.5, 0.14]} />
+      <mesh position={[0, 1.6, -0.34]}>
+        <boxGeometry args={[0.86, 0.56, 0.14]} />
         <meshStandardMaterial color={palette.hair} />
       </mesh>
-      <group ref={armL} position={[-0.4, 1.12, 0]}>
-        <mesh position={[0, -0.16, 0]} castShadow>
-          <boxGeometry args={[0.18, 0.34, 0.18]} />
+      <group ref={armL} position={[-0.42, 1.14, 0]}>
+        <mesh position={[0, -0.2, 0.04]} castShadow>
+          <boxGeometry args={[0.16, 0.42, 0.16]} />
           <meshStandardMaterial color={palette.skin} />
         </mesh>
-        <mesh position={[0, -0.4, 0]} castShadow>
-          <boxGeometry args={[0.22, 0.22, 0.22]} />
-          <meshStandardMaterial color={palette.skin} />
-        </mesh>
-      </group>
-      <group ref={armR} position={[0.4, 1.12, 0]}>
-        <mesh position={[0, -0.16, 0]} castShadow>
-          <boxGeometry args={[0.18, 0.34, 0.18]} />
-          <meshStandardMaterial color={palette.skin} />
-        </mesh>
-        <mesh position={[0, -0.4, 0]} castShadow>
-          <boxGeometry args={[0.22, 0.22, 0.22]} />
+        <mesh position={[0, -0.46, 0.08]} castShadow>
+          <boxGeometry args={[0.2, 0.18, 0.2]} />
           <meshStandardMaterial color={palette.skin} />
         </mesh>
       </group>
-      <sprite position={[0, 2.15, 0]} scale={[1.5, 0.38, 1]}>
+      <group ref={armR} position={[0.42, 1.14, 0]}>
+        <mesh position={[0, -0.2, 0.04]} castShadow>
+          <boxGeometry args={[0.16, 0.42, 0.16]} />
+          <meshStandardMaterial color={palette.skin} />
+        </mesh>
+        <mesh position={[0, -0.46, 0.08]} castShadow>
+          <boxGeometry args={[0.2, 0.18, 0.2]} />
+          <meshStandardMaterial color={palette.skin} />
+        </mesh>
+      </group>
+      <sprite position={[0, 2.35, 0]} scale={[1.5, 0.38, 1]}>
         <spriteMaterial map={label} transparent depthTest={false} />
       </sprite>
     </group>
@@ -212,15 +255,24 @@ export function CartModel({ id, colorId }: { id: string; colorId?: string }) {
   const group = useRef<Group>(null)
   const wheels = useRef<Group>(null)
   const spin = useRef(0)
+  const prevYaw = useRef(0)
+  const tilt = useRef(0)
   const basket = useMemo(() => makeBasket(), [])
   const storeColor = useGame((state) => state.room?.players.find((player) => player.id === id)?.colorId)
   const palette = colorById(colorId ?? storeColor ?? 'coral')
   useFrame((_, dt) => {
     const pose = views.carts.get(id)
     if (!pose || !group.current) return
+    let delta = pose.yaw - prevYaw.current
+    while (delta > Math.PI) delta -= Math.PI * 2
+    while (delta < -Math.PI) delta += Math.PI * 2
+    prevYaw.current = pose.yaw
+    const targetTilt = pose.held ? Math.max(-0.18, Math.min(0.18, -delta / Math.max(dt, 0.016) * 0.05)) : 0
+    tilt.current += (targetTilt - tilt.current) * (1 - Math.exp(-8 * dt))
     group.current.position.set(pose.x, 0, pose.z)
     group.current.rotation.y = pose.yaw
-    spin.current += dt * (pose.held ? 6 : 0)
+    group.current.rotation.z = tilt.current
+    spin.current += dt * (pose.held ? 8 : 0)
     if (wheels.current) {
       for (const child of wheels.current.children) child.rotation.x = spin.current
     }

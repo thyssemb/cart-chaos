@@ -105,6 +105,8 @@ interface Cart {
   held: boolean
   itemIds: string[]
   dropCd: number
+  vx: number
+  vz: number
 }
 
 function rid() {
@@ -160,6 +162,8 @@ export class Room {
       held: false,
       itemIds: [],
       dropCd: 0,
+      vx: 0,
+      vz: 0,
     })
     if (this.phase === 'playing' || this.phase === 'countdown') {
       player.list = rollList(this.rng)
@@ -433,7 +437,29 @@ export class Room {
 
     for (const cart of this.carts.values()) {
       cart.dropCd = Math.max(0, cart.dropCd - dtMs)
-      if (cart.held) continue
+      if (cart.held) {
+        cart.vx = 0
+        cart.vz = 0
+        continue
+      }
+      const slide = Math.hypot(cart.vx, cart.vz)
+      if (slide > 0.08) {
+        const nx = cart.x + cart.vx * dt
+        const nz = cart.z + cart.vz * dt
+        if (!collides(nx, nz, CART_RADIUS, OBSTACLES)) {
+          cart.x = nx
+          cart.z = nz
+        } else {
+          cart.vx *= -0.2
+          cart.vz *= -0.2
+        }
+        const damp = Math.exp(-3.6 * dt)
+        cart.vx *= damp
+        cart.vz *= damp
+      } else {
+        cart.vx = 0
+        cart.vz = 0
+      }
       for (const player of live) {
         const dist = Math.hypot(cart.x - player.x, cart.z - player.z)
         const speed = Math.hypot(player.vx, player.vz)
@@ -647,6 +673,8 @@ export class Room {
     if (player.holdingCart) {
       player.holdingCart = false
       cart.held = false
+      cart.vx = player.vx * 0.8
+      cart.vz = player.vz * 0.8
       return { ok: true }
     }
     if (Math.hypot(player.x - cart.x, player.z - cart.z) > GRAB_RANGE) return { ok: false, error: 'Caddie trop loin' }
@@ -659,6 +687,8 @@ export class Room {
     }
     player.holdingCart = true
     cart.held = true
+    cart.vx = 0
+    cart.vz = 0
     cart.x = anchor.x
     cart.z = anchor.z
     cart.yaw = player.yaw
@@ -705,7 +735,11 @@ export class Room {
       cart.dropCd = 700
     }
     target.holdingCart = false
-    if (cart) cart.held = false
+    if (cart) {
+      cart.held = false
+      cart.vx = fx * 1.5
+      cart.vz = fz * 1.5
+    }
     this.pushSfx('shove', target.x, target.z)
     return { ok: true }
   }
@@ -843,6 +877,8 @@ export class Room {
     cart.held = true
     cart.itemIds = []
     cart.dropCd = 0
+    cart.vx = 0
+    cart.vz = 0
     player.holdingCart = true
   }
 

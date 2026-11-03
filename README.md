@@ -49,7 +49,8 @@ npm run lint
 ## Contrôles
 
 - ZQSD ou WASD, Shift sprinter, Espace sauter
-- Souris : caméra (clic pour capturer le pointeur)
+- Souris : caméra (clic pour capturer le pointeur). Le personnage se tourne vers la marche, pas d’un coup avec la souris.
+- Réglages : volume général, musique, effets, amplitude de la caméra.
 - E ramasser / déposer / voler (maintenir) / caisse
 - F saisir ou lâcher le caddie
 - Clic gauche bousculer
@@ -59,6 +60,8 @@ npm run lint
 
 - [Règles](docs/GAME_RULES.md)
 - [Protocole réseau](docs/NETWORK.md)
+- [Audio](docs/AUDIO.md)
+- [Polish phase 1.5](docs/POLISH_REPORT.md)
 - [Licences des assets](docs/ASSET_LICENSES.md)
 
 ## Limites connues

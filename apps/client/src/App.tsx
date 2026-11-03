@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { ensureAudio } from './audio'
+import { ensureAudio, setMusicMode } from './audio'
 import { GameCanvas, MenuCanvas } from './scene/GameCanvas'
 import { useGame } from './store'
 import { Hud } from './ui/Hud'
@@ -7,11 +7,17 @@ import { HowTo, Lobby, Menu, Settings } from './ui/Screens'
 
 export function App() {
   const screen = useGame((state) => state.screen)
+  const phase = useGame((state) => state.room?.phase)
   useEffect(() => {
     const start = () => ensureAudio()
     window.addEventListener('pointerdown', start, { once: true })
     return () => window.removeEventListener('pointerdown', start)
   }, [])
+  useEffect(() => {
+    if (screen !== 'game') setMusicMode('menu')
+    else if (phase === 'results') setMusicMode('results')
+    else setMusicMode('match')
+  }, [screen, phase])
 
   return (
     <main className="relative h-full w-full overflow-hidden">

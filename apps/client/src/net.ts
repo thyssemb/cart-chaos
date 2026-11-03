@@ -38,7 +38,7 @@ socket.on('state', (room: PublicRoom) => {
   for (const effect of room.sfx) {
     if (seenSfx.has(effect.id)) continue
     seenSfx.add(effect.id)
-    playSfx(effect.type)
+    playSfx(effect.type, { x: effect.x, z: effect.z })
   }
 })
 

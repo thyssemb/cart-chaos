@@ -7,8 +7,8 @@ import {
   STEAL_RANGE,
   type ProductType,
 } from '@cart-chaos/shared'
-import { useEffect, useState } from 'react'
-import { playEnd, playVictory } from '../audio'
+import { useEffect, useRef, useState } from 'react'
+import { playEnd, playUi, playVictory } from '../audio'
 import { sendLeave, sendRematch } from '../net'
 import { useGame } from '../store'
 
@@ -21,6 +21,8 @@ export function Hud() {
   const clockOffset = useGame((state) => state.clockOffset)
   const [now, setNow] = useState(() => Date.now())
   const [seenResult, setSeenResult] = useState(0)
+  const countTick = useRef<number | null>(null)
+  const startedRound = useRef(0)
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 100)
@@ -35,6 +37,21 @@ export function Hud() {
     if (me && me.score === best) playVictory()
     else playEnd()
   }, [room, playerId, seenResult])
+
+  useEffect(() => {
+    if (!room) return
+    if (room.phase === 'countdown') {
+      const sec = Math.max(1, Math.ceil(Math.max(0, room.endsAt - (Date.now() + clockOffset)) / 1000))
+      if (countTick.current !== null && countTick.current !== sec) playUi('count')
+      countTick.current = sec
+      return
+    }
+    countTick.current = null
+    if (room.phase === 'playing' && startedRound.current !== room.round) {
+      startedRound.current = room.round
+      playUi('start')
+    }
+  }, [room, clockOffset])
 
   if (!room || !playerId) return null
   const me = room.players.find((player) => player.id === playerId)

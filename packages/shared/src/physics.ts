@@ -1,4 +1,4 @@
-import { CART_FOLLOW, CART_RADIUS, CART_SPEED_MUL, GRAVITY, JUMP_V, MOVE_SPEED, PLAYER_RADIUS, SLOW_MUL, SPRINT_SPEED, clamp } from './constants'
+import { CART_FOLLOW, CART_RADIUS, CART_SPEED_MUL, CONTROLLER, GRAVITY, PLAYER_RADIUS, SLOW_MUL, clamp } from './constants'
 import { STORE, type Obstacle } from './map'
 import type { MoveInput } from './types'
 
@@ -11,6 +11,20 @@ export interface Body {
   vz: number
   yaw: number
   grounded: boolean
+  coyote?: number
+  jumpLock?: number
+}
+
+function wrapAngle(delta: number) {
+  let value = delta
+  while (value > Math.PI) value -= Math.PI * 2
+  while (value < -Math.PI) value += Math.PI * 2
+  return value
+}
+
+export function turnToward(current: number, target: number, maxStep: number) {
+  const delta = wrapAngle(target - current)
+  return current + clamp(delta, -maxStep, maxStep)
 }
 
 export function cartAnchor(x: number, z: number, yaw: number) {
@@ -88,43 +102,62 @@ export function stepAvatar(
 ) {
   const step = Math.max(0, Math.min(dt, 0.05))
   const blocks = opts.extras && opts.extras.length ? obstacles.concat(opts.extras) : obstacles
-  const sprinting = input.sprint && input.forward > 0.2
-  const speed =
-    (sprinting ? SPRINT_SPEED : MOVE_SPEED) * (opts.holding ? CART_SPEED_MUL : 1) * (opts.slow ? SLOW_MUL : 1)
-  body.yaw = Number.isFinite(input.yaw) ? input.yaw : body.yaw
+  const aim = Number.isFinite(input.yaw) ? input.yaw : body.yaw
   const f = clamp(input.forward, -1, 1)
   const strafe = clamp(input.strafe, -1, 1)
-  let wx = Math.sin(body.yaw) * f + Math.cos(body.yaw) * strafe
-  let wz = Math.cos(body.yaw) * f - Math.sin(body.yaw) * strafe
+  let wx = Math.sin(aim) * f + Math.cos(aim) * strafe
+  let wz = Math.cos(aim) * f - Math.sin(aim) * strafe
   const len = Math.hypot(wx, wz)
   if (len > 1) {
     wx /= len
     wz /= len
   }
-  const rate = len > 0.05 ? 12 : 18
-  const k = 1 - Math.exp(-rate * step)
+  const moving = len > 0.08
+  const sprinting = input.sprint && f > 0.2
+  const speed =
+    (sprinting ? CONTROLLER.sprintSpeed : CONTROLLER.walkSpeed) *
+    (opts.holding ? CART_SPEED_MUL : 1) *
+    (opts.slow ? SLOW_MUL : 1) *
+    len
+  let face = body.yaw
+  if (moving) face = opts.holding || f > 0.2 ? aim : Math.atan2(wx, wz)
+  const previousYaw = body.yaw
+  const maxTurn = CONTROLLER.rotationSpeed * step * (opts.holding ? 0.75 : 1)
+  body.yaw = turnToward(body.yaw, face, maxTurn)
+  if (opts.holding && !canOccupy(body.x, body.z, body.yaw, true, blocks)) body.yaw = previousYaw
+
+  const accel = (moving ? CONTROLLER.acceleration : CONTROLLER.deceleration) * (body.grounded ? 1 : CONTROLLER.airControl)
+  const k = 1 - Math.exp(-accel * step)
   body.vx += (wx * speed - body.vx) * k
   body.vz += (wz * speed - body.vz) * k
-  if (input.jump && body.grounded) {
-    body.vy = JUMP_V
-    body.grounded = false
-  }
-  body.vy -= GRAVITY * step
 
-  const move = (dx: number, dz: number) => {
-    if (dx === 0 && dz === 0) return
+  body.coyote = body.grounded ? CONTROLLER.coyote : Math.max(0, (body.coyote ?? 0) - step)
+  body.jumpLock = Math.max(0, (body.jumpLock ?? 0) - step)
+  if (input.jump && (body.coyote ?? 0) > 0 && (body.jumpLock ?? 0) <= 0) {
+    body.vy = CONTROLLER.jumpImpulse
+    body.grounded = false
+    body.coyote = 0
+    body.jumpLock = CONTROLLER.jumpLock
+  }
+  body.vy -= GRAVITY * CONTROLLER.gravityScale * step
+
+  const tryMove = (dx: number, dz: number) => {
+    if (dx === 0 && dz === 0) return true
     const nx = body.x + dx
     const nz = body.z + dz
-    if (!canOccupy(nx, nz, body.yaw, opts.holding, blocks)) {
-      if (dx !== 0) body.vx = 0
-      if (dz !== 0) body.vz = 0
-      return
-    }
+    if (!canOccupy(nx, nz, body.yaw, opts.holding, blocks)) return false
     body.x = nx
     body.z = nz
+    return true
   }
-  move(body.vx * step, 0)
-  move(0, body.vz * step)
+  const dx = body.vx * step
+  const dz = body.vz * step
+  if (!tryMove(dx, dz)) {
+    const xOk = tryMove(dx, 0)
+    const zOk = tryMove(0, dz)
+    if (!xOk) body.vx *= 0.25
+    if (!zOk) body.vz *= 0.25
+  }
 
   body.y += body.vy * step
   if (body.y <= 0) {

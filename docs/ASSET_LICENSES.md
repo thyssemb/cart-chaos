@@ -12,4 +12,4 @@ Fredoka, distribuée par le paquet npm `@fontsource/fredoka`.
 
 ## Audio
 
-Musique et effets sont synthétisés dans le navigateur avec l’API Web Audio (oscillateurs et bruit). Aucun fichier audio tiers. Si le navigateur bloque l’autoplay, le jeu reste jouable après un clic.
+Musique de menu, musique de manche, ambiance de magasin et effets sont synthétisés dans le navigateur avec l’API Web Audio (oscillateurs et bruit). Aucun fichier audio tiers. Si le navigateur bloque l’autoplay, le jeu reste jouable après un clic. Les volumes général, musique et effets sont enregistrés dans le navigateur.

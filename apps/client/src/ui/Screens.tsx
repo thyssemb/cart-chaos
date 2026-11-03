@@ -1,5 +1,6 @@
 import { COLORS, MAX_PLAYERS } from '@cart-chaos/shared'
 import { useState } from 'react'
+import { playUi, syncAudio } from '../audio'
 import { createRoom, joinRoom, sendColor, sendLeave, sendReady, sendStart } from '../net'
 import { useGame } from '../store'
 
@@ -20,13 +21,13 @@ export function Menu() {
         <p className="mt-2 text-lg text-cream/80">Grab it. Steal it. Checkout.</p>
         {mode === 'home' ? (
           <div className="mt-8 space-y-3">
-            <button className="arcade-btn w-full bg-coral px-4 py-3 text-xl text-white" onClick={() => setMode('play')}>
+            <button className="arcade-btn w-full bg-coral px-4 py-3 text-xl text-white" onMouseEnter={() => playUi('hover')} onClick={() => { playUi('click'); setMode('play') }}>
               Jouer
             </button>
-            <button className="arcade-btn w-full bg-[#2ec4b6] px-4 py-3 text-xl text-ink" onClick={() => setScreen('howto')}>
+            <button className="arcade-btn w-full bg-[#2ec4b6] px-4 py-3 text-xl text-ink" onMouseEnter={() => playUi('hover')} onClick={() => { playUi('click'); setScreen('howto') }}>
               Comment jouer
             </button>
-            <button className="arcade-btn w-full bg-white/10 px-4 py-3 text-xl" onClick={() => setScreen('settings')}>
+            <button className="arcade-btn w-full bg-white/10 px-4 py-3 text-xl" onMouseEnter={() => playUi('hover')} onClick={() => { playUi('click'); setScreen('settings') }}>
               Réglages
             </button>
           </div>
@@ -110,6 +111,21 @@ export function Settings() {
           />
         </label>
         <label className="mt-4 block text-sm">
+          Volume général {Math.round(settings.master * 100)}%
+          <input
+            className="mt-2 w-full"
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={settings.master}
+            onChange={(event) => {
+              setSettings({ master: Number(event.target.value) })
+              syncAudio()
+            }}
+          />
+        </label>
+        <label className="mt-4 block text-sm">
           Musique {Math.round(settings.music * 100)}%
           <input
             className="mt-2 w-full"
@@ -118,7 +134,10 @@ export function Settings() {
             max={1}
             step={0.01}
             value={settings.music}
-            onChange={(event) => setSettings({ music: Number(event.target.value) })}
+            onChange={(event) => {
+              setSettings({ music: Number(event.target.value) })
+              syncAudio()
+            }}
           />
         </label>
         <label className="mt-4 block text-sm">
@@ -130,7 +149,22 @@ export function Settings() {
             max={1}
             step={0.01}
             value={settings.sfx}
-            onChange={(event) => setSettings({ sfx: Number(event.target.value) })}
+            onChange={(event) => {
+              setSettings({ sfx: Number(event.target.value) })
+              syncAudio()
+            }}
+          />
+        </label>
+        <label className="mt-4 block text-sm">
+          Mouvements de caméra {Math.round(settings.camera * 100)}%
+          <input
+            className="mt-2 w-full"
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={settings.camera}
+            onChange={(event) => setSettings({ camera: Number(event.target.value) })}
           />
         </label>
         <button className="arcade-btn mt-6 bg-gold px-5 py-3 text-ink" onClick={() => setScreen(inLobby ? 'lobby' : 'menu')}>

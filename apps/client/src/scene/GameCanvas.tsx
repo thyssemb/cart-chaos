@@ -12,7 +12,7 @@ import { Physics } from '@react-three/rapier'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Component, useEffect, useRef, type ReactNode } from 'react'
 import * as THREE from 'three'
-import { setWheel } from '../audio'
+import { footstep, setListener, setWheel } from '../audio'
 import { sendAction, sendInput } from '../net'
 import { useGame } from '../store'
 import { Actors, DemoCrew } from './Actors'
@@ -89,11 +89,12 @@ export function GameCanvas() {
 function Lights() {
   return (
     <>
-      <ambientLight intensity={0.62} />
-      <hemisphereLight args={['#fff4d6', '#8fd0b0', 0.45]} />
+      <ambientLight intensity={0.72} color="#fff4e4" />
+      <hemisphereLight args={['#fff7df', '#8fd0b0', 0.5]} />
       <directionalLight
         position={[12, 18, 8]}
-        intensity={0.9}
+        intensity={1.05}
+        color="#fff1d0"
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
@@ -125,6 +126,7 @@ function Locker() {
 function Simulation() {
   const seq = useRef(0)
   const sendAcc = useRef(0)
+  const foot = useRef(0)
   useEffect(() => {
     const down = (event: KeyboardEvent) => {
       if (event.repeat) return
@@ -256,7 +258,7 @@ function Simulation() {
         pose.x = views.local.x
         pose.y = views.local.y
         pose.z = views.local.z
-        pose.yaw = control.yaw
+        pose.yaw = views.local.yaw
         pose.speed = Math.hypot(views.local.vx, views.local.vz)
         pose.grounded = views.local.grounded
       } else {
@@ -331,8 +333,20 @@ function Simulation() {
       })
     }
 
-    const speed = playing && me.holdingCart ? Math.hypot(views.local.vx, views.local.vz) : 0
+    const planar = Math.hypot(views.local.vx, views.local.vz)
+    const speed = playing && me.holdingCart ? planar : 0
     setWheel(speed > 0.4 ? Math.min(0.12, speed * 0.012) : 0)
+    setListener(views.local.x, views.local.z, control.yaw)
+    if (playing && views.local.grounded && planar > 0.85) {
+      foot.current += planar * step
+      const stride = planar > 5.6 ? 0.52 : 0.74
+      if (foot.current >= stride) {
+        foot.current = 0
+        footstep(planar)
+      }
+    } else {
+      foot.current = 0
+    }
   })
   return null
 }
@@ -340,36 +354,50 @@ function Simulation() {
 function CameraRig() {
   const look = useRef(new THREE.Vector3())
   const ready = useRef(false)
+  const distance = useRef(5.5)
   useFrame((state, delta) => {
-    const meId = useGame.getState().playerId
+    const game = useGame.getState()
+    const meId = game.playerId
     const pose = meId ? views.players.get(meId) : undefined
-    const yaw = pose?.yaw ?? control.yaw
+    const yaw = control.yaw
     const px = pose?.x ?? 11
     const py = pose?.y ?? 0
     const pz = pose?.z ?? -7
+    const motion = game.settings.camera
+    const sprinting = (pose?.speed ?? 0) > 5.6 && motion > 0.05
     const blocks = OBSTACLES.filter((obstacle) => !obstacle.id.startsWith('c'))
-    let dist = 5.6
-    let side = 1.15
-    while (dist > 2.3) {
+    let dist = 5.35 + (sprinting ? 0.45 * motion : 0)
+    let side = 1.05
+    while (dist > 2.2) {
       const cx = px - Math.sin(yaw) * dist + Math.cos(yaw) * side
       const cz = pz - Math.cos(yaw) * dist - Math.sin(yaw) * side
       if (!collides(cx, cz, 0.25, blocks)) break
       dist -= 0.28
-      side = Math.max(0.2, side - 0.12)
+      side = Math.max(0.15, side - 0.12)
     }
-    const targetX = px - Math.sin(yaw) * dist + Math.cos(yaw) * side
-    const targetZ = pz - Math.cos(yaw) * dist - Math.sin(yaw) * side
-    const targetY = py + 2.55
+    const follow = 1 - Math.exp(-9 * delta)
+    distance.current += (dist - distance.current) * follow
+    const used = distance.current
+    const targetX = px - Math.sin(yaw) * used + Math.cos(yaw) * side
+    const targetZ = pz - Math.cos(yaw) * used - Math.sin(yaw) * side
+    const targetY = py + 2.35 + (sprinting ? 0.12 * motion : 0)
     if (!ready.current) {
       state.camera.position.set(targetX, targetY, targetZ)
+      distance.current = dist
       ready.current = true
     }
     const k = 1 - Math.exp(-7 * delta)
     state.camera.position.x += (targetX - state.camera.position.x) * k
     state.camera.position.y += (targetY - state.camera.position.y) * k
     state.camera.position.z += (targetZ - state.camera.position.z) * k
-    look.current.set(px + Math.sin(yaw) * 1.55, py + 0.82, pz + Math.cos(yaw) * 1.55)
+    look.current.set(px + Math.sin(yaw) * 1.35, py + 0.9, pz + Math.cos(yaw) * 1.35)
     state.camera.lookAt(look.current)
+    const camera = state.camera as THREE.PerspectiveCamera
+    const fov = 50 + (sprinting ? 5.5 * motion : 0)
+    if (Math.abs(camera.fov - fov) > 0.05) {
+      camera.fov += (fov - camera.fov) * (1 - Math.exp(-4 * delta))
+      camera.updateProjectionMatrix()
+    }
   })
   return null
 }

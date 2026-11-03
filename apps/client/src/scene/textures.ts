@@ -25,7 +25,7 @@ export function makeTiles() {
   })
   texture.wrapS = THREE.RepeatWrapping
   texture.wrapT = THREE.RepeatWrapping
-  texture.repeat.set(20, 15)
+  texture.repeat.set(28, 22)
   return texture
 }
 
@@ -49,8 +49,8 @@ export function makeFace(hit = false) {
     ctx.clearRect(0, 0, 256, 256)
     ctx.fillStyle = '#ff8fb3'
     ctx.beginPath()
-    ctx.arc(78, 150, 18, 0, Math.PI * 2)
-    ctx.arc(178, 150, 18, 0, Math.PI * 2)
+    ctx.arc(70, 128, 16, 0, Math.PI * 2)
+    ctx.arc(186, 128, 16, 0, Math.PI * 2)
     ctx.fill()
     ctx.strokeStyle = '#1b2430'
     ctx.lineWidth = 10

@@ -115,6 +115,36 @@ function Walls({ sign }: { sign: THREE.Texture }) {
       <Hanging text="FRAIS" position={[-1, 3.35, 7.6]} color="#ffd0d0" />
       <Hanging text="SURGELÉS" position={[10.2, 3.35, 7.6]} color="#c7ecff" />
       <Hanging text="PROMO" position={[13.3, 3.35, -3.4]} color="#ffd23f" />
+      <Poster text="2+1 BANANES" position={[-12.4, 2.35, 12.95]} rotation={[0, Math.PI, 0]} color="#ffd23f" />
+      <Poster text="PROMO FOLLE" position={[16.7, 2.35, 6.2]} rotation={[0, -Math.PI / 2, 0]} color="#ff5d6c" />
+      <Poster text="CAISSES" position={[-8.2, 2.7, -12.95]} rotation={[0, Math.PI, 0]} color="#2ec4b6" />
+      <Poster text="PQ D'OR" position={[8.4, 2.55, 12.95]} rotation={[0, Math.PI, 0]} color="#ffe56b" />
+    </group>
+  )
+}
+
+function Poster({
+  text,
+  position,
+  rotation,
+  color,
+}: {
+  text: string
+  position: [number, number, number]
+  rotation: [number, number, number]
+  color: string
+}) {
+  const map = useMemo(() => makeSign(text, color, '#243038'), [text, color])
+  return (
+    <group position={position} rotation={rotation}>
+      <mesh position={[0, 0, -0.02]}>
+        <boxGeometry args={[1.7, 1.05, 0.06]} />
+        <meshStandardMaterial color="#fff8ea" />
+      </mesh>
+      <mesh>
+        <planeGeometry args={[1.5, 0.86]} />
+        <meshBasicMaterial map={map} toneMapped={false} />
+      </mesh>
     </group>
   )
 }

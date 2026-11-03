@@ -5,8 +5,10 @@ export type Screen = 'menu' | 'howto' | 'settings' | 'lobby' | 'game'
 
 export interface Settings {
   name: string
+  master: number
   music: number
   sfx: number
+  camera: number
 }
 
 interface State {
@@ -40,15 +42,17 @@ const SESSION_KEY = 'cart-chaos-session'
 function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY)
-    if (!raw) return { name: 'Joueur', music: 0.35, sfx: 0.8 }
+    if (!raw) return { name: 'Joueur', master: 0.85, music: 0.35, sfx: 0.8, camera: 1 }
     const parsed = JSON.parse(raw) as Partial<Settings>
     return {
       name: typeof parsed.name === 'string' && parsed.name.trim() ? parsed.name.slice(0, 14) : 'Joueur',
+      master: clamp01(parsed.master, 0.85),
       music: clamp01(parsed.music, 0.35),
       sfx: clamp01(parsed.sfx, 0.8),
+      camera: clamp01(parsed.camera, 1),
     }
   } catch {
-    return { name: 'Joueur', music: 0.35, sfx: 0.8 }
+    return { name: 'Joueur', master: 0.85, music: 0.35, sfx: 0.8, camera: 1 }
   }
 }
 

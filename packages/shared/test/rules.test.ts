@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   CART_RADIUS,
+  CONTROLLER,
   HOMES,
   LEGENDARY_AT_MS,
   OBSTACLES,
@@ -19,6 +20,7 @@ import {
   sanitizeName,
   stealBanner,
   stepAvatar,
+  turnToward,
   zeroInput,
   type Body,
 } from '../src/index'
@@ -89,6 +91,19 @@ describe('carte et déplacement', () => {
     expect(collides(body.x, body.z, PLAYER_RADIUS, OBSTACLES)).toBe(false)
     expect(body.x).toBeGreaterThan(-12.1)
     expect(body.x).toBeLessThan(-10.2)
+  })
+
+  it('accélère et tourne sans demi-tour instantané', () => {
+    const body: Body = { x: -3.2, y: 0, z: -6.2, vx: 0, vy: 0, vz: 0, yaw: 0, grounded: true }
+    const input = { ...zeroInput(Math.PI * 0.75), forward: 1, sprint: false }
+    stepAvatar(body, input, 0.05, OBSTACLES, { holding: false, slow: false })
+    expect(Math.abs(body.yaw)).toBeLessThan(1)
+    expect(Math.abs(body.yaw)).toBeGreaterThan(0.2)
+    expect(Math.hypot(body.vx, body.vz)).toBeLessThan(CONTROLLER.walkSpeed * 0.75)
+    for (let i = 0; i < 14; i += 1) stepAvatar(body, input, 0.05, OBSTACLES, { holding: false, slow: false })
+    expect(Math.hypot(body.vx, body.vz)).toBeGreaterThan(CONTROLLER.walkSpeed * 0.8)
+    expect(turnToward(0, Math.PI, 0.4)).toBeCloseTo(0.4)
+    expect(turnToward(0, -Math.PI + 0.1, 0.3)).toBeCloseTo(-0.3)
   })
 
   it('n’éjecte pas hors du magasin', () => {
