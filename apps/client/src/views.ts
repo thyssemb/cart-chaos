@@ -55,14 +55,21 @@ export const control = {
   interactHeld: false,
 }
 
+export function readTurn() {
+  const keys = control.keys
+  const left = keys.has('q') || keys.has('a') || keys.has('arrowleft')
+  const right = keys.has('d') || keys.has('arrowright')
+  if (left === right) return 0
+  return right ? 1 : -1
+}
+
 export function readInput() {
   const keys = control.keys
   const forward = keys.has('z') || keys.has('w') || keys.has('arrowup') ? 1 : keys.has('s') || keys.has('arrowdown') ? -1 : 0
-  const strafe = keys.has('d') || keys.has('arrowright') ? 1 : keys.has('q') || keys.has('a') || keys.has('arrowleft') ? -1 : 0
   return {
     seq: 0,
     forward,
-    strafe,
+    strafe: 0,
     yaw: control.yaw,
     sprint: keys.has('shift'),
     jump: performance.now() < control.jumpUntil,

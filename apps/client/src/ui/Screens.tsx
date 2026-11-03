@@ -76,7 +76,7 @@ export function HowTo() {
       <div className="w-[min(560px,94vw)] rounded-[2rem] bg-ink/80 p-7">
         <h2 className="text-4xl font-bold">Comment jouer</h2>
         <ul className="mt-4 space-y-2 text-lg leading-snug">
-          <li>ZQSD ou WASD pour courir, Shift pour sprinter, Espace pour sauter.</li>
+          <li>ZQSD, WASD ou les flèches : avancer, tourner à gauche, tourner à droite, reculer. Shift sprinte, Espace saute.</li>
           <li>La souris tourne la caméra après un clic. Échap met en pause locale.</li>
           <li>F saisit ou lâche ton caddie. E ramasse, dépose, vole ou passe en caisse.</li>
           <li>Le clic gauche bouscule. Un choc peut faire tomber un produit.</li>

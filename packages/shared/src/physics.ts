@@ -27,6 +27,11 @@ export function turnToward(current: number, target: number, maxStep: number) {
   return current + clamp(delta, -maxStep, maxStep)
 }
 
+export function applyKeyTurn(yaw: number, turn: number, dt: number) {
+  const step = Math.max(0, Math.min(dt, 0.05))
+  return yaw - clamp(turn, -1, 1) * CONTROLLER.keyTurnSpeed * step
+}
+
 export function cartAnchor(x: number, z: number, yaw: number) {
   return {
     x: x + Math.sin(yaw) * CART_FOLLOW,
@@ -119,8 +124,7 @@ export function stepAvatar(
     (opts.holding ? CART_SPEED_MUL : 1) *
     (opts.slow ? SLOW_MUL : 1) *
     len
-  let face = body.yaw
-  if (moving) face = opts.holding || f > 0.2 ? aim : Math.atan2(wx, wz)
+  const face = aim
   const previousYaw = body.yaw
   const maxTurn = CONTROLLER.rotationSpeed * step * (opts.holding ? 0.75 : 1)
   body.yaw = turnToward(body.yaw, face, maxTurn)

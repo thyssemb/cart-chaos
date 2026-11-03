@@ -14,6 +14,7 @@ export const CONTROLLER = {
   acceleration: 11,
   deceleration: 16,
   rotationSpeed: 8.5,
+  keyTurnSpeed: 2.8,
   jumpImpulse: 6.35,
   airControl: 0.42,
   gravityScale: 1,

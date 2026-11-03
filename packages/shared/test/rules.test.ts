@@ -19,6 +19,7 @@ import {
   sanitizeCode,
   sanitizeName,
   stealBanner,
+  applyKeyTurn,
   stepAvatar,
   turnToward,
   zeroInput,
@@ -102,6 +103,8 @@ describe('carte et déplacement', () => {
     expect(Math.hypot(body.vx, body.vz)).toBeLessThan(CONTROLLER.walkSpeed * 0.75)
     for (let i = 0; i < 14; i += 1) stepAvatar(body, input, 0.05, OBSTACLES, { holding: false, slow: false })
     expect(Math.hypot(body.vx, body.vz)).toBeGreaterThan(CONTROLLER.walkSpeed * 0.8)
+    expect(applyKeyTurn(0, 1, 0.05)).toBeCloseTo(-CONTROLLER.keyTurnSpeed * 0.05)
+    expect(applyKeyTurn(0, -1, 0.05)).toBeCloseTo(CONTROLLER.keyTurnSpeed * 0.05)
     expect(turnToward(0, Math.PI, 0.4)).toBeCloseTo(0.4)
     expect(turnToward(0, -Math.PI + 0.1, 0.3)).toBeCloseTo(-0.3)
   })

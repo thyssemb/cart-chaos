@@ -6,6 +6,7 @@ import {
   collides,
   discObstacle,
   slotWorld,
+  applyKeyTurn,
   stepAvatar,
 } from '@cart-chaos/shared'
 import { Physics } from '@react-three/rapier'
@@ -17,7 +18,7 @@ import { sendAction, sendInput } from '../net'
 import { useGame } from '../store'
 import { Actors, DemoCrew } from './Actors'
 import { Supermarket } from './Supermarket'
-import { control, lerpAngle, readInput, views } from '../views'
+import { control, lerpAngle, readInput, readTurn, views } from '../views'
 
 class Guard extends Component<{ children: ReactNode; fallback: ReactNode }, { bad: boolean }> {
   state = { bad: false }
@@ -131,8 +132,7 @@ function Simulation() {
     const down = (event: KeyboardEvent) => {
       if (event.repeat) return
       const key = event.key.toLowerCase()
-      if (event.key === 'Tab') event.preventDefault()
-      if (event.key === ' ') event.preventDefault()
+      if (event.key === 'Tab' || event.key === ' ' || event.key.startsWith('Arrow')) event.preventDefault()
       if (key === 'escape') {
         const state = useGame.getState()
         if (state.screen === 'game' && state.room?.phase === 'playing') {
@@ -184,6 +184,9 @@ function Simulation() {
     const me = room.players.find((player) => player.id === meId)
     if (!me) return
     const playing = room.phase === 'playing' && !state.paused
+    if (!state.paused && (room.phase === 'playing' || room.phase === 'countdown')) {
+      control.yaw = applyKeyTurn(control.yaw, readTurn(), step)
+    }
     const liveInput = readInput()
     const input = playing
       ? liveInput

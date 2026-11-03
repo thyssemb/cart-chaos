@@ -48,8 +48,9 @@ npm run lint
 
 ## Contrôles
 
-- ZQSD ou WASD, Shift sprinter, Espace sauter
-- Souris : caméra (clic pour capturer le pointeur). Le personnage se tourne vers la marche, pas d’un coup avec la souris.
+- ZQSD (AZERTY), WASD (QWERTY) ou les flèches : avancer, tourner à gauche, tourner à droite, reculer
+- Shift sprinter, Espace sauter
+- Souris : caméra (clic pour capturer le pointeur)
 - Réglages : volume général, musique, effets, amplitude de la caméra.
 - E ramasser / déposer / voler (maintenir) / caisse
 - F saisir ou lâcher le caddie
@@ -67,7 +68,7 @@ npm run lint
 ## Limites connues
 
 - Les décors, personnages et caddies sont de la géométrie procédurale, pas des modèles Kenney ou Quaternius.
-- La caméra se tourne au clic (pointer lock). Sans clic, ZQSD avance selon l’orientation actuelle.
+- ZQSD, WASD et les flèches tournent le personnage. La souris tourne aussi la caméra après un clic.
 - La physique des articles dans le caddie est un placement fixe, pas une simulation de chaque objet.
 - Le son est synthétisé. Le navigateur peut le bloquer jusqu’au premier clic.
 - Pas de test Playwright dans ce dépôt. Les règles et un parcours Socket.IO à deux clients sont couverts par Vitest.
