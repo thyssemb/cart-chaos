@@ -57,20 +57,33 @@ export function Menu() {
               />
             </label>
             <button className="arcade-btn w-full bg-coral px-4 py-3 text-white" onMouseEnter={() => playUi('hover')} onClick={() => { playUi('click'); void createRoom() }}>
-              Créer une partie
+              Créer une partie privée
             </button>
-            <div className="flex gap-2">
+            <p className="text-xs text-cream/65">Un code unique est généré. Envoie-le à ceux qui doivent te rejoindre.</p>
+            <label className="block text-sm">
+              Code de la partie
               <input
-                className="w-full rounded-2xl bg-white/10 px-4 py-3 uppercase outline-none"
+                className="mt-1 w-full rounded-2xl bg-white/10 px-4 py-3 uppercase outline-none"
                 maxLength={4}
                 placeholder="CODE"
                 value={code}
                 onChange={(event) => setCode(event.target.value.toUpperCase())}
               />
-              <button className="arcade-btn bg-gold px-4 py-3 text-ink" onMouseEnter={() => playUi('hover')} onClick={() => { playUi('click'); void joinRoom(code) }}>
-                Rejoindre
-              </button>
-            </div>
+            </label>
+            <button
+              className="arcade-btn w-full bg-gold px-4 py-3 text-ink"
+              onMouseEnter={() => playUi('hover')}
+              onClick={() => {
+                playUi('click')
+                if (code.trim().length < 4) {
+                  useGame.getState().setError('Entre le code de la partie')
+                  return
+                }
+                void joinRoom(code)
+              }}
+            >
+              Rejoindre une partie
+            </button>
             <button className="w-full text-sm text-cream/70" onClick={() => setMode('home')}>
               Retour
             </button>
@@ -177,7 +190,8 @@ export function HowTo() {
         <ul className="mt-4 space-y-2 text-lg leading-snug">
           <li>ZQSD, WASD ou les flèches se déplacent par rapport à la caméra. Shift sprinte, Espace saute.</li>
           <li>Après un clic, la souris tourne la caméra et regarde en haut et en bas. Échap met en pause locale.</li>
-          <li>F saisit ou lâche ton caddie. E ramasse, dépose, vole ou passe en caisse.</li>
+          <li>Sur la place, E près de la porte monte dans le bus ou en descend. L’hôte appuie sur F quand tout le monde est à bord.</li>
+          <li>En magasin, F saisit ou lâche ton caddie. E ramasse, dépose, vole ou passe en caisse.</li>
           <li>Le clic gauche bouscule. Un choc peut faire tomber un produit.</li>
           <li>Ta liste ne compte qu’une fois les articles passés en caisse.</li>
           <li>Maintiens E près d’un caddie adverse non protégé pour voler.</li>

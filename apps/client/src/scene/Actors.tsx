@@ -119,7 +119,7 @@ export function CharacterModel({
   const label = useMemo(() => makeLabel(name ?? storePlayer?.name ?? '', '#fff6df'), [name, storePlayer?.name])
   const inLobby = useGame((state) => state.screen === 'lobby')
   const readyLabel = useMemo(
-    () => makeLabel(storePlayer?.ready ? 'Prêt' : 'Pas prêt', storePlayer?.ready ? '#b6ffcf' : '#ffe1a8'),
+    () => makeLabel(storePlayer?.ready ? 'À bord' : 'Dehors', storePlayer?.ready ? '#b6ffcf' : '#ffe1a8'),
     [storePlayer?.ready],
   )
   const chat = useGame((state) => {

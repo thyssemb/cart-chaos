@@ -9,6 +9,7 @@ let musicGain: GainNode | null = null
 let sfxGain: GainNode | null = null
 let wheelGain: GainNode | null = null
 let humGain: GainNode | null = null
+let engineGain: GainNode | null = null
 let hissGain: GainNode | null = null
 let started = false
 let timer = 0
@@ -57,6 +58,19 @@ function context() {
     hum.connect(humGain)
     humGain.connect(musicGain)
     hum.start()
+
+    const engine = ctx.createOscillator()
+    engine.type = 'sawtooth'
+    engine.frequency.value = 54
+    const engineFilter = ctx.createBiquadFilter()
+    engineFilter.type = 'lowpass'
+    engineFilter.frequency.value = 160
+    engineGain = ctx.createGain()
+    engineGain.gain.value = 0
+    engine.connect(engineFilter)
+    engineFilter.connect(engineGain)
+    engineGain.connect(sfxGain)
+    engine.start()
 
     const hiss = ctx.createBufferSource()
     hiss.buffer = noise
@@ -115,6 +129,14 @@ export function setListener(x: number, z: number, yaw: number) {
   listener.x = x
   listener.z = z
   listener.yaw = yaw
+}
+
+export function setEngine(amount: number) {
+  const audio = context()
+  if (!engineGain || !audio) return
+  const now = audio.currentTime
+  engineGain.gain.cancelScheduledValues(now)
+  engineGain.gain.linearRampToValueAtTime(Math.max(0, Math.min(0.22, amount)), now + 0.08)
 }
 
 export function setWheel(amount: number) {
@@ -240,7 +262,7 @@ export function footstep(speed: number) {
   }
 }
 
-export function playUi(kind: 'hover' | 'click' | 'error' | 'count' | 'start') {
+export function playUi(kind: 'hover' | 'click' | 'error' | 'count' | 'start' | 'door') {
   try {
     ensureAudio()
     if (kind === 'hover') tone(720, 0.04, 'sine', 0.03)
@@ -250,6 +272,10 @@ export function playUi(kind: 'hover' | 'click' | 'error' | 'count' | 'start') {
     if (kind === 'start') {
       tone(523, 0.1, 'triangle', 0.08)
       tone(784, 0.14, 'triangle', 0.08, 0.08)
+    }
+    if (kind === 'door') {
+      noiseBurst(0.12, 90, 0.1)
+      tone(72, 0.16, 'sawtooth', 0.05)
     }
   } catch {
     // Le jeu continue si le son est bloqué.

@@ -117,6 +117,7 @@ export function createGameServer(opts?: { autoTick?: boolean }) {
       const named = playerName(body.name)
       if (!named.ok) return ackOf(ack, { ok: false, error: named.error })
       const code = sanitizeCode(body.code)
+      if (code.length < 4) return ackOf(ack, { ok: false, error: 'Entre le code de la partie' })
       const room = rooms.get(code)
       if (!room) return ackOf(ack, { ok: false, error: 'Partie introuvable' })
       const joined = room.addPlayer(named.name, readLook(body))

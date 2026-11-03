@@ -10,9 +10,16 @@ import {
   HOMES,
   INTERACT_RANGE,
   LEGENDARY_AT_MS,
+  BUS_HOME,
+  BUS_ROLL,
+  BUS_SEATS,
   LOBBY,
   LOBBY_OBSTACLES,
+  LOBBY_REACH,
   LOBBY_SPAWNS,
+  busAlightWorld,
+  busDoorWorld,
+  busSeatWorld,
   MATCH_MS,
   MAX_PLAYERS,
   MIN_PLAYERS,
@@ -95,6 +102,7 @@ interface Player {
   emote: EmoteId | null
   emoteUntil: number
   emoteAt: number
+  seat: number | null
 }
 
 interface Product {
@@ -149,6 +157,12 @@ export class Room {
   sfx: { id: number; type: SfxType; x: number; z: number }[] = []
   private legendarySpawned = false
   private holdLobby = false
+  private busX: number = BUS_HOME.x
+  private busZ: number = BUS_HOME.z
+  private busYaw: number = BUS_HOME.yaw
+  private busDoor: number = 1
+  private busRolling = false
+  private departMs = 0
   private noticeSeq = 1
   private chatSeq = 1
   private sfxSeq = 1
@@ -193,7 +207,7 @@ export class Room {
       player.holdingCart = true
       this.placeCart(player)
     }
-    this.notify(`${player.name} ${inStore ? 'entre dans le magasin' : 'arrive en salle de pause'}`, 'info', null, 2200)
+    this.notify(`${player.name} ${inStore ? 'entre dans le magasin' : 'arrive sur la place'}`, 'info', null, 2200)
     this.pushSfx('join', player.x, player.z)
     return { ok: true, player, token }
   }
@@ -239,7 +253,24 @@ export class Room {
   setReady(playerId: string) {
     const player = this.players.get(playerId)
     if (!player || this.phase !== 'lobby') return { ok: false, error: 'Pas maintenant' }
-    player.ready = !player.ready
+    if (player.ready || player.seat != null) {
+      this.alight(player)
+      return { ok: true }
+    }
+    const door = busDoorWorld()
+    if (Math.hypot(player.x - door.x, player.z - door.z) > LOBBY_REACH) {
+      return { ok: false, error: 'Approche la porte du bus' }
+    }
+    const seat = this.freeSeat()
+    if (seat == null) return { ok: false, error: 'Bus complet' }
+    player.seat = seat
+    player.ready = true
+    player.emote = null
+    player.emoteUntil = 0
+    player.vx = 0
+    player.vy = 0
+    player.vz = 0
+    this.pinSeat(player)
     return { ok: true }
   }
 
@@ -296,6 +327,11 @@ export class Room {
   setInput(playerId: string, input: MoveInput) {
     const player = this.players.get(playerId)
     if (!player || !player.connected) return
+    if (player.seat != null && (this.phase === 'lobby' || this.holdLobby)) {
+      player.input = zeroInput(player.yaw)
+      player.lastInputAt = Date.now()
+      return
+    }
     if (this.phase === 'lobby') {
       player.input = input
       player.lastInputAt = Date.now()
@@ -328,7 +364,7 @@ export class Room {
     if (!this.canControl(playerId)) return { ok: false, error: 'Seul l’hôte peut lancer' }
     if (this.connectedCount() < MIN_PLAYERS) return { ok: false, error: 'Il faut au moins 1 joueur' }
     if (this.phase === 'lobby' && [...this.players.values()].some((player) => player.connected && !player.ready)) {
-      return { ok: false, error: 'Tout le monde doit être prêt' }
+      return { ok: false, error: 'Tout le monde doit être à bord' }
     }
     if (this.phase === 'lobby') this.armFromLobby()
     else this.beginRound()
@@ -361,6 +397,7 @@ export class Room {
       player.carryingId = null
       player.holdingCart = false
       player.ready = false
+      player.seat = null
       player.score = 0
       player.list = []
       player.validated = {}
@@ -380,7 +417,8 @@ export class Room {
         cart.yaw = spawn.yaw
       }
     }
-    this.notify('Retour en salle de pause', 'info', null, 1800)
+    this.resetBus()
+    this.notify('Retour sur la place', 'info', null, 1800)
     return { ok: true }
   }
 
@@ -455,6 +493,13 @@ export class Room {
       notices: this.notices.map((notice) => ({ ...notice })),
       chats: this.chats.map((chat) => ({ ...chat })),
       sfx: this.sfx.slice(-8),
+      bus: {
+        x: round3(this.busX),
+        z: round3(this.busZ),
+        yaw: round3(this.busYaw),
+        door: round3(this.busDoor),
+        rolling: this.busRolling,
+      },
     }
   }
 
@@ -478,6 +523,7 @@ export class Room {
     }
     if (this.phase === 'countdown') {
       this.timeLeftMs -= dtMs
+      if (this.holdLobby) this.rollBus(dtMs)
       if (this.timeLeftMs <= 0) {
         if (this.holdLobby) this.enterStore()
         this.phase = 'playing'
@@ -493,17 +539,22 @@ export class Room {
     const dt = dtMs / 1000
     const now = Date.now()
     const live = [...this.players.values()].filter((player) => player.connected)
+    const walking = live.filter((player) => player.seat == null)
     for (const player of live) {
-      if (now - player.lastInputAt > 280) {
+      if (now - player.lastInputAt > 280 && player.seat == null) {
         player.input = { ...player.input, forward: 0, strafe: 0, sprint: false, jump: false, interactHeld: false }
       }
       if (player.emoteUntil <= now) player.emote = null
+      if (player.seat != null) {
+        this.pinSeat(player)
+        continue
+      }
       stepAvatar(player, player.input, dt, LOBBY_OBSTACLES, { holding: false, slow: false, bounds: LOBBY })
     }
-    for (let i = 0; i < live.length; i += 1) {
-      for (let j = i + 1; j < live.length; j += 1) {
-        const a = live[i]!
-        const b = live[j]!
+    for (let i = 0; i < walking.length; i += 1) {
+      for (let j = i + 1; j < walking.length; j += 1) {
+        const a = walking[i]!
+        const b = walking[j]!
         let dx = b.x - a.x
         let dz = b.z - a.z
         let dist = Math.hypot(dx, dz)
@@ -523,7 +574,7 @@ export class Room {
         b.z += nz * push
       }
     }
-    for (const player of live) {
+    for (const player of walking) {
       const safe = depenetrate(player.x, player.z, PLAYER_RADIUS, LOBBY_OBSTACLES, LOBBY)
       player.x = safe.x
       player.z = safe.z
@@ -993,6 +1044,7 @@ export class Room {
     this.timeLeftMs = COUNTDOWN_MS
     this.holdLobby = true
     this.legendarySpawned = false
+    this.resetBus()
     for (const player of this.players.values()) {
       player.vx = 0
       player.vy = 0
@@ -1007,6 +1059,7 @@ export class Room {
   private enterStore() {
     this.holdLobby = false
     this.seatForMatch()
+    this.resetBus()
   }
 
   private seatForMatch() {
@@ -1039,6 +1092,7 @@ export class Room {
       player.shoveCd = 0
       player.steal = null
       player.ready = false
+      player.seat = null
       player.emote = null
       player.emoteUntil = 0
       player.list = rollList(this.rng)
@@ -1065,6 +1119,75 @@ export class Room {
         scored: false,
       })
     }
+  }
+
+  private freeSeat() {
+    const taken = new Set<number>()
+    for (const player of this.players.values()) {
+      if (player.seat != null) taken.add(player.seat)
+    }
+    for (let index = 0; index < BUS_SEATS.length; index += 1) {
+      if (!taken.has(index)) return index
+    }
+    return null
+  }
+
+  private alight(player: Player) {
+    const spot = busAlightWorld(player.seat ?? 0)
+    player.seat = null
+    player.ready = false
+    player.x = spot.x
+    player.y = 0
+    player.z = spot.z
+    player.vx = 0
+    player.vy = 0
+    player.vz = 0
+    player.yaw = 0
+    player.grounded = true
+    player.input = zeroInput(0)
+  }
+
+  private pinSeat(player: Player) {
+    if (player.seat == null) return
+    const seat = busSeatWorld(player.seat, { x: this.busX, z: this.busZ, yaw: this.busYaw })
+    if (!seat) return
+    player.x = seat.x
+    player.y = 0.32
+    player.z = seat.z
+    player.yaw = seat.yaw
+    player.vx = 0
+    player.vy = 0
+    player.vz = 0
+    player.grounded = true
+  }
+
+  private rollBus(dtMs: number) {
+    this.departMs += dtMs
+    const closeMs = 700
+    if (this.departMs <= closeMs) {
+      this.busDoor = 1 - this.departMs / closeMs
+      this.busRolling = false
+    } else {
+      this.busDoor = 0
+      this.busRolling = true
+      const span = Math.max(1, COUNTDOWN_MS - closeMs)
+      const t = Math.min(1, (this.departMs - closeMs) / span)
+      const ease = t * t * (3 - 2 * t)
+      const c = Math.cos(this.busYaw)
+      const s = Math.sin(this.busYaw)
+      this.busX = BUS_HOME.x + c * ease * BUS_ROLL
+      this.busZ = BUS_HOME.z + s * ease * BUS_ROLL
+    }
+    for (const player of this.players.values()) this.pinSeat(player)
+  }
+
+  private resetBus() {
+    this.busX = BUS_HOME.x
+    this.busZ = BUS_HOME.z
+    this.busYaw = BUS_HOME.yaw
+    this.busDoor = 1
+    this.busRolling = false
+    this.departMs = 0
   }
 
   private placeCart(player: Player) {
@@ -1131,6 +1254,7 @@ export class Room {
       emote: null,
       emoteUntil: 0,
       emoteAt: 0,
+      seat: null,
     }
   }
 

@@ -95,6 +95,14 @@ export interface PublicSfx {
   z: number
 }
 
+export interface PublicBus {
+  x: number
+  z: number
+  yaw: number
+  door: number
+  rolling: boolean
+}
+
 export interface PublicRoom {
   code: string
   phase: Phase
@@ -108,6 +116,7 @@ export interface PublicRoom {
   notices: PublicNotice[]
   chats: PublicChat[]
   sfx: PublicSfx[]
+  bus: PublicBus
 }
 
 export interface ClientAck {

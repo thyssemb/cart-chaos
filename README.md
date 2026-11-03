@@ -19,7 +19,7 @@ npm install
 npm run dev
 ```
 
-Ouvre ensuite **http://localhost:5173**. Choisis un pseudo (3 à 16 caractères), un visage et un accessoire, puis crée ou rejoins un salon. Le salon est une petite place au coucher du soleil : chaque joueur s’y promène avec son avatar. Tout le monde doit être prêt avant que l’hôte lance la manche depuis la place.
+Ouvre ensuite **http://localhost:5173**. Choisis un pseudo (3 à 16 caractères), un visage et un accessoire, puis crée une partie privée ou rejoins-en une avec le code de l’hôte. Le salon est un quartier au coucher du soleil : chaque joueur s’y promène avec son avatar, puis monte dans le bus. Tout le monde doit être à bord avant que l’hôte lance la manche.
 
 - Client Vite : http://localhost:5173
 - Serveur Socket.IO : http://localhost:3001
@@ -52,7 +52,7 @@ npm run lint
 - Shift sprinte (environ 60 % plus vite), Espace saute
 - Souris : caméra (clic pour capturer le pointeur). Le personnage s’oriente vers l’avant et les côtés. S et flèche bas marchent à reculons sans demi-tour.
 - Réglages : volume général, musique, effets, amplitude de la caméra.
-- Sur la place : E près du tableau, du miroir, du code ou de la cloche centrale. 1 salue, 2 danse, Entrée ouvre le chat
+- Dans le quartier : E près de la porte du bus, du miroir, du code ou du tableau. F lance le départ quand tout le monde est à bord. 1 salue, 2 danse, Entrée ouvre le chat
 - E ramasse le produit visé au centre de l’écran (molette pour changer de cible proche), dépose, vole (maintenir) ou passe en caisse
 - F saisir ou lâcher le caddie
 - Clic gauche bousculer

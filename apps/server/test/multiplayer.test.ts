@@ -1,7 +1,7 @@
 import type { AddressInfo } from 'node:net'
 import { io as clientIo, type Socket } from 'socket.io-client'
 import { afterAll, describe, expect, it } from 'vitest'
-import type { PublicRoom } from '@cart-chaos/shared'
+import { busDoorWorld, type PublicRoom } from '@cart-chaos/shared'
 import { createGameServer } from '../src/server'
 
 const game = createGameServer({ autoTick: false })
@@ -57,11 +57,21 @@ describe('socket multijoueur', () => {
     const stranger = connect(port)
     sockets.push(stranger)
     await new Promise((resolve) => stranger.on('connect', () => resolve(null)))
-    const full = await emit<{ ok: boolean; error?: string }>(stranger, 'join', { name: 'X', code: 'ZZZZ' })
+    const full = await emit<{ ok: boolean; error?: string }>(stranger, 'join', { name: 'Nino', code: 'ZZZZ' })
     expect(full.ok).toBe(false)
+    expect(full.error).toBe('Partie introuvable')
+    const shortCode = await emit<{ ok: boolean; error?: string }>(stranger, 'join', { name: 'Nino', code: 'AB' })
+    expect(shortCode.ok).toBe(false)
+    expect(shortCode.error).toBe('Entre le code de la partie')
 
     const tooSoon = await emit<{ ok: boolean }>(kevin, 'start')
     expect(tooSoon.ok).toBe(false)
+    const door = busDoorWorld()
+    const room = game.rooms.get(created.code)!
+    room.players.get(created.playerId)!.x = door.x
+    room.players.get(created.playerId)!.z = door.z
+    room.players.get(joined.playerId)!.x = door.x
+    room.players.get(joined.playerId)!.z = door.z
     expect((await emit<{ ok: boolean }>(kevin, 'ready')).ok).toBe(true)
     expect((await emit<{ ok: boolean }>(lina, 'ready')).ok).toBe(true)
     const said = await emit<{ ok: boolean; state?: PublicRoom }>(lina, 'chat', { text: '  <b>prête</b>  ' })
@@ -69,7 +79,6 @@ describe('socket multijoueur', () => {
     const started = await emit<{ ok: boolean }>(kevin, 'start')
     expect(started.ok).toBe(true)
     game.tick(3000)
-    const room = game.rooms.get(created.code)!
     expect(room.phase).toBe('playing')
 
     const before = room.players.get(created.playerId)!.z

@@ -1,4 +1,5 @@
 import { LOBBY_MODE, LOBBY_PROPS, LOBBY_SPOTS, type LobbyProp } from '@cart-chaos/shared'
+import { NeighborhoodBus } from './Bus'
 import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import { useGame } from '../store'
@@ -54,17 +55,17 @@ void main() {
 `
 
 export function Plaza() {
-  const grocery = LOBBY_PROPS.find((prop) => prop.id === 'grocery')!
   const cafe = LOBBY_PROPS.find((prop) => prop.id === 'cafe')!
   return (
     <group>
       <SunsetSky />
       <Ground />
       <Hills />
+      <NeighborhoodBus />
       {LOBBY_PROPS.map((prop) => (
         <Prop key={prop.id} prop={prop} />
       ))}
-      <ReadyBoard grocery={grocery} />
+      <ReadyBoard />
       <CodeBoard />
       <Mirror />
       <Awning prop={cafe} />
@@ -86,38 +87,56 @@ function SunsetSky() {
 function Ground() {
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.04, 0.6]} receiveShadow>
-        <planeGeometry args={[46, 38]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 2]} receiveShadow>
+        <planeGeometry args={[64, 48]} />
         <meshStandardMaterial color="#6fbf6a" />
       </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, -0.4]} receiveShadow>
-        <circleGeometry args={[7.2, 40]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.03, 8.45]} receiveShadow>
+        <planeGeometry args={[54, 4.5]} />
+        <meshStandardMaterial color="#5c6472" />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.025, 5.35]} receiveShadow>
+        <planeGeometry args={[52, 1.55]} />
+        <meshStandardMaterial color="#e7d3b4" />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.025, 11.55]} receiveShadow>
+        <planeGeometry args={[50, 1.45]} />
+        <meshStandardMaterial color="#ead4b2" />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-14.4, -0.028, 1]} receiveShadow>
+        <planeGeometry args={[4.2, 30]} />
+        <meshStandardMaterial color="#6a7280" />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[16.2, -0.028, -1]} receiveShadow>
+        <planeGeometry args={[3.8, 22]} />
+        <meshStandardMaterial color="#6a7280" />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, -1.2]} receiveShadow>
+        <circleGeometry args={[6.6, 40]} />
         <meshStandardMaterial color="#f3d2a2" />
       </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-1.6, -0.01, 2.4]} receiveShadow>
-        <planeGeometry args={[3.2, 9.5]} />
-        <meshStandardMaterial color="#efc894" />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[2.6, -0.01, -1.2]} receiveShadow>
-        <planeGeometry args={[8.5, 2.4]} />
-        <meshStandardMaterial color="#efc894" />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[8.6, -0.01, 1.5]} receiveShadow>
-        <planeGeometry args={[2.3, 7.2]} />
-        <meshStandardMaterial color="#e7c08a" />
-      </mesh>
+      {[-16, -8, 0, 8, 16].map((x) => (
+        <mesh key={x} rotation={[-Math.PI / 2, 0, 0]} position={[x, -0.02, 8.45]}>
+          <planeGeometry args={[1.4, 0.12]} />
+          <meshBasicMaterial color="#ffe14a" />
+        </mesh>
+      ))}
     </group>
   )
 }
 
 function Hills() {
   const hills = [
-    [-18, 16, 7, 3.2],
-    [-8, 18, 8, 2.6],
-    [4, 17.5, 9, 3.4],
-    [16, 16, 7, 2.8],
-    [20, 4, 6, 2.2],
-    [-20, -2, 6, 2.4],
+    [-34, 16, 9, 3.4],
+    [-18, 26, 10, 3],
+    [2, 27, 12, 3.3],
+    [22, 25, 9, 2.8],
+    [36, 6, 8, 3],
+    [34, -10, 7, 2.5],
+    [-36, -4, 8, 2.8],
+    [-16, -24, 10, 2.6],
+    [8, -24, 11, 2.7],
+    [28, -20, 8, 2.3],
   ]
   return (
     <group>
@@ -134,17 +153,172 @@ function Hills() {
 function Prop({ prop }: { prop: LobbyProp }) {
   if (prop.kind === 'grocery') return <Grocery prop={prop} />
   if (prop.kind === 'cafe') return <Cafe prop={prop} />
+  if (prop.kind === 'house') return <House prop={prop} />
+  if (prop.kind === 'shop') return <Shop prop={prop} />
+  if (prop.kind === 'bakery') return <Bakery prop={prop} />
   if (prop.kind === 'stall') return <Stall prop={prop} />
-  if (prop.kind === 'podium') return <Podium prop={prop} />
   if (prop.kind === 'bench') return <Bench prop={prop} />
   if (prop.kind === 'vend') return <Vendor prop={prop} />
   if (prop.kind === 'hedge') return <Hedge prop={prop} />
   if (prop.kind === 'palm') return <Palm prop={prop} />
+  if (prop.kind === 'tree') return <Tree prop={prop} />
+  if (prop.kind === 'lamp') return <Lamp prop={prop} />
+  if (prop.kind === 'fountain') return <Fountain prop={prop} />
+  if (prop.kind === 'shelter') return <Shelter prop={prop} />
   if (prop.kind === 'table') return <TerraceTable prop={prop} />
-  if (prop.kind === 'sign') return <SignFrame prop={prop} />
+  if (prop.kind === 'sign') return prop.id === 'stop-board' ? null : <SignFrame prop={prop} />
   if (prop.kind === 'hoop') return <Hoop prop={prop} />
   if (prop.kind === 'stairs') return <Stairs prop={prop} />
   return <Planter prop={prop} />
+}
+
+function faceOffset(prop: LobbyProp, gap: number) {
+  if (prop.face === 'e') return { x: prop.w / 2 + gap, z: 0, east: true }
+  if (prop.face === 'w') return { x: -prop.w / 2 - gap, z: 0, east: true }
+  if (prop.face === 'n') return { x: 0, z: prop.d / 2 + gap, east: false }
+  return { x: 0, z: -prop.d / 2 - gap, east: false }
+}
+
+function House({ prop }: { prop: LobbyProp }) {
+  const front = faceOffset(prop, 0.04)
+  const span = front.east ? prop.d * 0.62 : prop.w * 0.62
+  const windowArgs: [number, number, number] = front.east ? [0.08, 0.7, span] : [span, 0.7, 0.08]
+  return (
+    <group position={[prop.x, 0, prop.z]}>
+      <mesh position={[0, prop.h / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[prop.w, prop.h, prop.d]} />
+        <meshStandardMaterial color={prop.color} />
+      </mesh>
+      <mesh position={[0, prop.h + 0.18, 0]} castShadow>
+        <boxGeometry args={[prop.w + 0.3, 0.28, prop.d + 0.3]} />
+        <meshStandardMaterial color="#c96b5a" />
+      </mesh>
+      <mesh position={[front.x, 1.7, front.z]}>
+        <boxGeometry args={windowArgs} />
+        <meshStandardMaterial color="#1d2430" />
+      </mesh>
+      <mesh position={[front.x, 3.15, front.z]}>
+        <boxGeometry args={front.east ? [0.08, 0.55, span * 0.7] : [span * 0.7, 0.55, 0.08]} />
+        <meshStandardMaterial color="#9ad7ff" />
+      </mesh>
+    </group>
+  )
+}
+
+function Shop({ prop }: { prop: LobbyProp }) {
+  const front = faceOffset(prop, 0.05)
+  return (
+    <group position={[prop.x, 0, prop.z]}>
+      <mesh position={[0, prop.h / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[prop.w, prop.h, prop.d]} />
+        <meshStandardMaterial color={prop.color} />
+      </mesh>
+      <mesh position={[front.x, 1.6, front.z]}>
+        <boxGeometry args={[prop.w * 0.7, 1.1, 0.08]} />
+        <meshStandardMaterial color="#14323c" />
+      </mesh>
+      <mesh position={[front.x, 2.55, front.z - 0.7]} castShadow>
+        <boxGeometry args={[prop.w * 0.9, 0.08, 1.5]} />
+        <meshStandardMaterial color="#fff6df" />
+      </mesh>
+      <mesh position={[front.x, 2.55, front.z - 1.15]}>
+        <boxGeometry args={[prop.w * 0.9, 0.08, 0.28]} />
+        <meshStandardMaterial color="#ff5d6c" />
+      </mesh>
+    </group>
+  )
+}
+
+function Bakery({ prop }: { prop: LobbyProp }) {
+  const front = faceOffset(prop, 0.05)
+  return (
+    <group position={[prop.x, 0, prop.z]}>
+      <mesh position={[0, prop.h / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[prop.w, prop.h, prop.d]} />
+        <meshStandardMaterial color={prop.color} />
+      </mesh>
+      <mesh position={[front.x, 1.45, front.z]}>
+        <boxGeometry args={[0.08, 0.9, prop.d * 0.45]} />
+        <meshStandardMaterial color="#ffd0a8" emissive="#ffb36b" emissiveIntensity={0.25} />
+      </mesh>
+      <mesh position={[0, prop.h + 0.16, 0]}>
+        <boxGeometry args={[prop.w + 0.25, 0.22, prop.d + 0.2]} />
+        <meshStandardMaterial color="#e07a5f" />
+      </mesh>
+    </group>
+  )
+}
+
+function Tree({ prop }: { prop: LobbyProp }) {
+  return (
+    <group position={[prop.x, 0, prop.z]}>
+      <mesh position={[0, 0.9, 0]} castShadow>
+        <cylinderGeometry args={[0.12, 0.18, 1.8, 6]} />
+        <meshStandardMaterial color="#8a5a32" />
+      </mesh>
+      <mesh position={[0, 2.15, 0]} castShadow>
+        <sphereGeometry args={[0.85, 10, 8]} />
+        <meshStandardMaterial color={prop.color} />
+      </mesh>
+    </group>
+  )
+}
+
+function Lamp({ prop }: { prop: LobbyProp }) {
+  return (
+    <group position={[prop.x, 0, prop.z]}>
+      <mesh position={[0, 1.15, 0]}>
+        <cylinderGeometry args={[0.05, 0.07, 2.3, 6]} />
+        <meshStandardMaterial color="#3d4654" />
+      </mesh>
+      <mesh position={[0, 2.35, 0]}>
+        <sphereGeometry args={[0.16, 10, 8]} />
+        <meshStandardMaterial color={prop.color} emissive="#ffb703" emissiveIntensity={0.7} />
+      </mesh>
+    </group>
+  )
+}
+
+function Fountain({ prop }: { prop: LobbyProp }) {
+  return (
+    <group position={[prop.x, 0, prop.z]}>
+      <mesh position={[0, 0.28, 0]} receiveShadow castShadow>
+        <cylinderGeometry args={[0.85, 0.95, 0.5, 18]} />
+        <meshStandardMaterial color="#d7e4ee" />
+      </mesh>
+      <mesh position={[0, 0.58, 0]}>
+        <cylinderGeometry args={[0.55, 0.6, 0.16, 16]} />
+        <meshStandardMaterial color={prop.color} />
+      </mesh>
+      <mesh position={[0, 0.95, 0]}>
+        <cylinderGeometry args={[0.08, 0.1, 0.55, 8]} />
+        <meshStandardMaterial color="#fff6df" />
+      </mesh>
+    </group>
+  )
+}
+
+function Shelter({ prop }: { prop: LobbyProp }) {
+  const sign = useMemo(() => makeSign('BUS', '#ffe14a', '#14323c'), [])
+  useEffect(() => () => sign.dispose(), [sign])
+  return (
+    <group position={[prop.x, 0, prop.z]}>
+      <mesh position={[0, 1.15, 0]} castShadow>
+        <boxGeometry args={[prop.w, 0.08, prop.d]} />
+        <meshStandardMaterial color="#ff8b78" />
+      </mesh>
+      {[-prop.w / 2 + 0.08, prop.w / 2 - 0.08].map((x) => (
+        <mesh key={x} position={[x, 0.58, 0]}>
+          <boxGeometry args={[0.08, 1.15, 0.08]} />
+          <meshStandardMaterial color="#3d4654" />
+        </mesh>
+      ))}
+      <mesh position={[0, 1.55, 0]}>
+        <planeGeometry args={[0.7, 0.32]} />
+        <meshBasicMaterial map={sign} toneMapped={false} />
+      </mesh>
+    </group>
+  )
 }
 
 function Grocery({ prop }: { prop: LobbyProp }) {
@@ -223,39 +397,6 @@ function Stall({ prop }: { prop: LobbyProp }) {
       </mesh>
       <mesh position={[0, prop.h + 0.45, 0]}>
         <boxGeometry args={[1.3, 0.4, 0.08]} />
-        <meshStandardMaterial color="#14323c" />
-      </mesh>
-    </group>
-  )
-}
-
-function Podium({ prop }: { prop: LobbyProp }) {
-  const ready = useGame((state) => {
-    const room = state.room
-    if (!room) return false
-    const online = room.players.filter((player) => player.connected)
-    return online.length > 0 && online.every((player) => player.ready)
-  })
-  return (
-    <group position={[prop.x, 0, prop.z]}>
-      <mesh position={[0, 0.28, 0]} receiveShadow castShadow>
-        <cylinderGeometry args={[0.85, 0.95, 0.5, 18]} />
-        <meshStandardMaterial color="#f2d7b0" />
-      </mesh>
-      <mesh position={[0, 0.58, 0]}>
-        <cylinderGeometry args={[0.62, 0.68, 0.18, 16]} />
-        <meshStandardMaterial color={ready ? '#7dffb3' : '#8fd8ff'} emissive={ready ? '#1f9d55' : '#1a6ea8'} emissiveIntensity={0.35} />
-      </mesh>
-      <mesh position={[0, 0.95, 0]} castShadow>
-        <cylinderGeometry args={[0.08, 0.1, 0.7, 8]} />
-        <meshStandardMaterial color="#fff6df" />
-      </mesh>
-      <mesh position={[0, 1.4, 0]}>
-        <sphereGeometry args={[0.22, 14, 12]} />
-        <meshStandardMaterial color={ready ? '#7dffb3' : '#ffd56a'} emissive={ready ? '#39c97a' : '#ffb703'} emissiveIntensity={0.8} />
-      </mesh>
-      <mesh position={[0, 1.85, -0.55]}>
-        <boxGeometry args={[1.15, 0.32, 0.06]} />
         <meshStandardMaterial color="#14323c" />
       </mesh>
     </group>
@@ -432,7 +573,7 @@ function Planter({ prop }: { prop: LobbyProp }) {
   )
 }
 
-function ReadyBoard({ grocery }: { grocery: LobbyProp }) {
+function ReadyBoard() {
   const signature = useGame((state) =>
     (state.room?.players ?? [])
       .filter((player) => player.connected)
@@ -451,9 +592,8 @@ function ReadyBoard({ grocery }: { grocery: LobbyProp }) {
     },
     [roster, mode],
   )
-  const z = grocery.z - grocery.d / 2 - 0.06
   return (
-    <group position={[grocery.x, 1.7, z]}>
+    <group position={[6.15, 1.55, 4.5]}>
       <mesh castShadow>
         <boxGeometry args={[2.2, 2.45, 0.08]} />
         <meshStandardMaterial color="#8a5a32" />
@@ -502,7 +642,7 @@ function Mirror() {
 function Balloons() {
   const colors = ['#ff5d6c', '#ffd23f', '#7eb6ff', '#5ee0a0']
   return (
-    <group position={[2.15, 0, -0.55]}>
+    <group position={[4.4, 0, 11.6]}>
       {colors.map((color, index) => (
         <group key={color} position={[index * 0.28 - 0.4, 0, 0]}>
           <mesh position={[0, 2.15 + (index % 2) * 0.18, 0]}>
@@ -521,7 +661,7 @@ function Balloons() {
 
 function Court() {
   return (
-    <group position={[10.2, 0.01, -4.6]}>
+    <group position={[11.2, 0.01, -8.4]}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[4.6, 3.2]} />
         <meshStandardMaterial color="#d9855a" />

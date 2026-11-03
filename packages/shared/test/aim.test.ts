@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
+  BUS_SEATS,
   HOMES,
   LOBBY,
   LOBBY_OBSTACLES,
   LOBBY_SPAWNS,
   LOBBY_SPOTS,
   PLAYER_RADIUS,
+  busAlightWorld,
+  busDoorWorld,
+  busObstacle,
+  busSeatWorld,
   cameraPlausible,
   collides,
   productHidden,
@@ -68,6 +73,20 @@ describe('place du salon', () => {
     }
     for (const spot of Object.values(LOBBY_SPOTS)) {
       expect(collides(spot.x, spot.z, PLAYER_RADIUS, LOBBY_OBSTACLES, LOBBY)).toBe(false)
+    }
+    const bus = busObstacle()
+    const door = busDoorWorld()
+    expect(door.z).toBeLessThan(bus.minZ - PLAYER_RADIUS)
+    expect(door.x).toBeGreaterThan(bus.minX)
+    expect(door.x).toBeLessThan(bus.maxX)
+    for (let index = 0; index < BUS_SEATS.length; index += 1) {
+      const seat = busSeatWorld(index)!
+      expect(seat.x).toBeGreaterThan(bus.minX + 0.2)
+      expect(seat.x).toBeLessThan(bus.maxX - 0.2)
+      expect(seat.z).toBeGreaterThan(bus.minZ + 0.2)
+      expect(seat.z).toBeLessThan(bus.maxZ - 0.2)
+      const step = busAlightWorld(index)
+      expect(collides(step.x, step.z, PLAYER_RADIUS, LOBBY_OBSTACLES, LOBBY)).toBe(false)
     }
     const spawn = LOBBY_SPAWNS[0]!
     const body: Body = { x: spawn.x, y: 0, z: spawn.z, vx: 0, vy: 0, vz: 0, yaw: 0, grounded: true }

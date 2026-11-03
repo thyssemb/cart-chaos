@@ -160,7 +160,7 @@ export function makeRoster(lines: { name: string; ready: boolean; host: boolean 
       ctx.fillText(name, 40, y)
       ctx.textAlign = 'right'
       ctx.fillStyle = line.ready ? '#148a52' : '#c46a12'
-      ctx.fillText(line.ready ? 'Prêt' : 'Pas prêt', 470, y)
+      ctx.fillText(line.ready ? 'À bord' : 'Dehors', 470, y)
     })
   })
 }

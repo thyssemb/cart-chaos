@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CATALOG, MATCH_MS, type AimRay, type ProductType } from '@cart-chaos/shared'
+import { busDoorWorld, CATALOG, MATCH_MS, type AimRay, type ProductType } from '@cart-chaos/shared'
 import { Room } from '../src/room'
 
 function lookFrom(player: { x: number; y: number; z: number }, product: { x: number; y: number; z: number }): AimRay {
@@ -17,8 +17,13 @@ function lookFrom(player: { x: number; y: number; z: number }, product: { x: num
 }
 
 function readyAll(room: Room) {
+  const door = busDoorWorld()
   for (const player of room.players.values()) {
-    if (player.connected && !player.ready) room.setReady(player.id)
+    if (!player.connected || player.ready) continue
+    player.x = door.x
+    player.z = door.z
+    const boarded = room.setReady(player.id)
+    if (!boarded.ok) throw new Error(boarded.error ?? 'embarquement')
   }
 }
 
@@ -62,13 +67,26 @@ describe('salon', () => {
   })
 })
 
+describe('salon plein', () => {
+  it('refuse un septième joueur', () => {
+    const room = new Room('FULL')
+    for (let index = 0; index < 6; index += 1) {
+      const joined = room.addPlayer(`Joueur${index}`)
+      expect(joined.ok).toBe(true)
+    }
+    const extra = room.addPlayer('Extra')
+    expect(extra.ok).toBe(false)
+    if (!extra.ok) expect(extra.error).toBe('Salon plein')
+  })
+})
+
 describe('manche', () => {
   it('lance à un seul joueur puis enchaîne compte à rebours, jeu et résultats', () => {
     const room = new Room('SOLO')
     const only = room.addPlayer('Nino')
     if (!only.ok) throw new Error('joueur')
     expect(room.start(only.player.id).ok).toBe(false)
-    room.setReady(only.player.id)
+    readyAll(room)
     expect(room.start(only.player.id).ok).toBe(true)
     room.tick(3000)
     expect(room.phase).toBe('playing')

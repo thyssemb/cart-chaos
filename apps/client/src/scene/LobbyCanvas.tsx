@@ -2,7 +2,7 @@ import { LOBBY, LOBBY_HEIGHTS, LOBBY_OBSTACLES, lobbySpotAt, stepAvatar } from '
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
-import { footstep, setListener, setWheel } from '../audio'
+import { footstep, playUi, setEngine, setListener, setWheel } from '../audio'
 import { sendEmote, sendInput, sendReady, sendStart } from '../net'
 import { useGame } from '../store'
 import { control, debug, lerpAngle, lobbyUi, patchLobbyUi, readInput, requestLobbyCopy, views } from '../views'
@@ -46,11 +46,11 @@ function LobbyLights() {
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
         shadow-camera-near={0.5}
-        shadow-camera-far={48}
-        shadow-camera-left={-18}
-        shadow-camera-right={18}
-        shadow-camera-top={18}
-        shadow-camera-bottom={-18}
+        shadow-camera-far={70}
+        shadow-camera-left={-28}
+        shadow-camera-right={28}
+        shadow-camera-top={28}
+        shadow-camera-bottom={-28}
       />
     </>
   )
@@ -78,6 +78,7 @@ function LobbySimulation() {
   const seq = useRef(0)
   const sendAcc = useRef(0)
   const foot = useRef(0)
+  const doorWas = useRef(1)
   useEffect(() => {
     const down = (event: KeyboardEvent) => {
       if (event.repeat) return
@@ -101,6 +102,7 @@ function LobbySimulation() {
       control.keys.add(key)
       if (key === ' ') control.jumpUntil = performance.now() + 180
       if (key === 'e') activateSpot()
+      if (key === 'f') depart()
     }
     const up = (event: KeyboardEvent) => {
       control.keys.delete(event.key.toLowerCase())
@@ -121,6 +123,7 @@ function LobbySimulation() {
       window.removeEventListener('mousemove', move)
       control.keys.clear()
       control.interactHeld = false
+      setEngine(0)
       if (lobbyUi.chat || lobbyUi.kiosk) patchLobbyUi({ chat: false, kiosk: false })
     }
   }, [])
@@ -133,7 +136,7 @@ function LobbySimulation() {
     if (!room || !meId) return
     const me = room.players.find((player) => player.id === meId)
     if (!me) return
-    const roaming = room.phase === 'lobby' && !control.uiLock
+    const roaming = room.phase === 'lobby' && !control.uiLock && !me.ready
     const liveInput = readInput()
     const input = roaming ? liveInput : { ...liveInput, forward: 0, strafe: 0, sprint: false, jump: false, interactHeld: false }
     const far = Math.hypot(me.x - views.local.x, me.z - views.local.z)
@@ -233,6 +236,11 @@ function LobbySimulation() {
     const planar = Math.hypot(views.local.vx, views.local.vz)
     setWheel(0)
     setListener(views.local.x, views.local.z, control.yaw)
+    const bus = room.bus
+    if (room.phase === 'countdown' && bus) setEngine(bus.rolling ? 0.2 : 0.07)
+    else setEngine(0)
+    if (doorWas.current > 0.4 && (bus?.door ?? 1) < 0.12) playUi('door')
+    doorWas.current = bus?.door ?? 1
     if (roaming && views.local.grounded && planar > 0.85) {
       foot.current += planar * step
       const along = Math.sin(views.local.yaw) * views.local.vx + Math.cos(views.local.yaw) * views.local.vz
@@ -256,7 +264,7 @@ function activateSpot() {
   }
   const spot = lobbySpotAt(views.local.x, views.local.z)
   if (spot === 'ready') {
-    void sendReady()
+    state.setFlash('Direction le supermarché · manche 3 min')
     return
   }
   if (spot === 'kiosk') {
@@ -276,20 +284,35 @@ function activateSpot() {
     return
   }
   if (spot === 'door') {
-    const online = room.players.filter((player) => player.connected)
-    const hostOnline = online.some((player) => player.host)
-    if (hostOnline && !me.host) {
-      state.setFlash('L’hôte lance la manche')
-      return
-    }
-    if (!online.every((player) => player.ready)) {
-      state.setFlash('Tout le monde doit être prêt')
-      return
-    }
-    void sendStart()
+    void sendReady()
     return
   }
   state.setFlash('Rien à portée')
+}
+
+function depart() {
+  const state = useGame.getState()
+  const room = state.room
+  const me = room?.players.find((player) => player.id === state.playerId)
+  if (!room || !me || room.phase !== 'lobby') {
+    state.setFlash('Pas maintenant')
+    return
+  }
+  const online = room.players.filter((player) => player.connected)
+  const hostOnline = online.some((player) => player.host)
+  if (hostOnline && !me.host) {
+    state.setFlash('L’hôte lance le départ')
+    return
+  }
+  if (!me.ready) {
+    state.setFlash('Monte dans le bus')
+    return
+  }
+  if (!online.every((player) => player.ready)) {
+    state.setFlash('Tout le monde doit être à bord')
+    return
+  }
+  void sendStart()
 }
 
 function LobbyCamera() {
@@ -303,6 +326,24 @@ function LobbyCamera() {
     const px = pose?.x ?? 0
     const py = pose?.y ?? 0
     const pz = pose?.z ?? 0
+    const bus = game.room?.bus
+    if (game.room?.phase === 'countdown' && bus) {
+      const camera = state.camera as THREE.PerspectiveCamera
+      const follow = 1 - Math.exp(-4 * delta)
+      const goalX = bus.x - 2.4
+      const goalY = 3.4
+      const goalZ = bus.z - 8.2
+      if (!ready.current) {
+        camera.position.set(goalX, goalY, goalZ)
+        ready.current = true
+      }
+      camera.position.x += (goalX - camera.position.x) * follow
+      camera.position.y += (goalY - camera.position.y) * follow
+      camera.position.z += (goalZ - camera.position.z) * follow
+      look.current.set(bus.x, 1.5, bus.z)
+      camera.lookAt(look.current)
+      return
+    }
     const motion = game.settings.camera
     const sprinting = (pose?.speed ?? 0) > 9.4 && motion > 0.05
     const input = {

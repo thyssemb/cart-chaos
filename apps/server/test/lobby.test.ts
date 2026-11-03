@@ -1,7 +1,7 @@
 import type { AddressInfo } from 'node:net'
 import { io as clientIo, type Socket } from 'socket.io-client'
 import { afterAll, describe, expect, it } from 'vitest'
-import { LIST_SIZE, LOBBY, LOBBY_OBSTACLES, LOBBY_SPAWNS, PLAYER_RADIUS, SPAWNS, collides, type PublicRoom } from '@cart-chaos/shared'
+import { BUS_HOME, LIST_SIZE, LOBBY, LOBBY_OBSTACLES, LOBBY_SPAWNS, PLAYER_RADIUS, SPAWNS, busDoorWorld, collides, type PublicRoom } from '@cart-chaos/shared'
 import { Room } from '../src/room'
 import { createGameServer } from '../src/server'
 
@@ -29,12 +29,26 @@ describe('salle de pause', () => {
     expect(room.phase).toBe('lobby')
 
     expect(room.start(host.player.id).ok).toBe(false)
+    expect(room.setReady(host.player.id).ok).toBe(false)
+    const door = busDoorWorld()
+    host.player.x = door.x
+    host.player.z = door.z
     expect(room.setReady(host.player.id).ok).toBe(true)
     expect(host.player.ready).toBe(true)
     expect(room.setReady(host.player.id).ok).toBe(true)
     expect(host.player.ready).toBe(false)
+    host.player.x = door.x
+    host.player.z = door.z
     room.setReady(host.player.id)
     expect(room.start(host.player.id).ok).toBe(false)
+    guest.player.x = door.x
+    guest.player.z = door.z
+    room.setReady(guest.player.id)
+    expect(room.setReady(guest.player.id).ok).toBe(true)
+    expect(guest.player.ready).toBe(false)
+    expect(room.start(host.player.id).ok).toBe(false)
+    guest.player.x = door.x
+    guest.player.z = door.z
     room.setReady(guest.player.id)
     expect(room.say(guest.player.id, 'salut').ok).toBe(true)
     expect(room.snapshot().chats.map((chat) => chat.text)).toContain('salut')
@@ -42,11 +56,20 @@ describe('salle de pause', () => {
     expect(room.snapshot().players.find((player) => player.id === host.player.id)?.emote).toBe('dance')
 
     const parked = host.player.z
+    const guestParked = guest.player.z
     expect(room.start(host.player.id).ok).toBe(true)
     expect(room.phase).toBe('countdown')
     expect(host.player.z).toBeCloseTo(parked)
-    expect(guest.player.z).toBeCloseTo(idleZ)
-    room.tick(3000)
+    expect(guest.player.z).toBeCloseTo(guestParked)
+    expect(room.snapshot().bus.door).toBe(1)
+    const seatX = host.player.x
+    room.tick(1000)
+    expect(room.phase).toBe('countdown')
+    expect(room.snapshot().bus.rolling).toBe(true)
+    expect(room.snapshot().bus.door).toBe(0)
+    expect(room.snapshot().bus.x).toBeGreaterThan(BUS_HOME.x + 0.4)
+    expect(host.player.x).toBeGreaterThan(seatX + 0.3)
+    room.tick(2000)
     expect(room.phase).toBe('playing')
     expect(host.player.list).toHaveLength(LIST_SIZE)
     expect(guest.player.list).toHaveLength(LIST_SIZE)
@@ -106,6 +129,8 @@ describe('socket salle de pause', () => {
       expect(collides(player.x, player.z, PLAYER_RADIUS, LOBBY_OBSTACLES, LOBBY)).toBe(false)
     }
     expect(joined.state.players[0]?.x).not.toBeCloseTo(joined.state.players[1]?.x ?? 0)
+    expect(joined.state.bus.door).toBe(1)
+    expect(joined.state.bus.rolling).toBe(false)
 
     const room = game.rooms.get(created.code)!
     const startZ = room.players.get(created.playerId)!.z
@@ -121,8 +146,22 @@ describe('socket salle de pause', () => {
     expect(Math.abs(room.players.get(joined.playerId)!.z - (joined.state.players.find((player) => player.id === joined.playerId)?.z ?? 0))).toBeLessThan(0.2)
 
     expect((await emit<{ ok: boolean }>(kevin, 'start')).ok).toBe(false)
+    expect((await emit<{ ok: boolean; error?: string }>(kevin, 'ready')).ok).toBe(false)
+    const door = busDoorWorld()
+    const kevinPlayer = room.players.get(created.playerId)!
+    const linaPlayer = room.players.get(joined.playerId)!
+    kevinPlayer.x = door.x
+    kevinPlayer.z = door.z
     expect((await emit<{ ok: boolean; state?: PublicRoom }>(kevin, 'ready')).ok).toBe(true)
     expect(await waitFor(() => states.some((state) => state.players.some((player) => player.id === created.playerId && player.ready)))).toBe(true)
+    linaPlayer.x = door.x
+    linaPlayer.z = door.z
+    expect((await emit<{ ok: boolean }>(lina, 'ready')).ok).toBe(true)
+    expect((await emit<{ ok: boolean }>(lina, 'ready')).ok).toBe(true)
+    expect(linaPlayer.ready).toBe(false)
+    expect((await emit<{ ok: boolean }>(kevin, 'start')).ok).toBe(false)
+    linaPlayer.x = door.x
+    linaPlayer.z = door.z
     expect((await emit<{ ok: boolean }>(lina, 'ready')).ok).toBe(true)
     const said = await emit<{ ok: boolean }>(lina, 'chat', { text: '  <b>coucou</b>  ' })
     expect(said.ok).toBe(true)
@@ -133,7 +172,9 @@ describe('socket salle de pause', () => {
 
     expect((await emit<{ ok: boolean }>(kevin, 'start')).ok).toBe(true)
     expect(room.phase).toBe('countdown')
-    expect(collides(room.players.get(created.playerId)!.x, room.players.get(created.playerId)!.z, PLAYER_RADIUS, LOBBY_OBSTACLES, LOBBY)).toBe(false)
+    expect(room.snapshot().bus.x).toBeCloseTo(BUS_HOME.x)
+    expect(kevinPlayer.ready).toBe(true)
+    expect(linaPlayer.ready).toBe(true)
     game.tick(3000)
     expect(room.phase).toBe('playing')
     expect(room.players.get(created.playerId)!.list).toHaveLength(LIST_SIZE)

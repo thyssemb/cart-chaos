@@ -87,8 +87,16 @@ export function LobbyHud() {
   return (
     <div className="pointer-events-none absolute inset-0 text-cream">
       <div className="absolute left-4 top-4 rounded-2xl bg-ink/70 px-4 py-2 shadow-xl">
-        <div className="text-[10px] tracking-[0.25em] text-gold">PLACE</div>
+        <div className="text-[10px] tracking-[0.25em] text-gold">SALON</div>
         <div className="text-2xl font-bold tracking-widest">{room.code}</div>
+        <div className="mt-1 space-y-0.5 text-xs text-cream/75">
+          {room.players.map((player) => (
+            <div key={player.id}>
+              {player.name} · {player.connected ? (player.ready ? 'à bord' : 'dehors') : 'déconnecté'}
+              {player.host ? ' · hôte' : ''}
+            </div>
+          ))}
+        </div>
       </div>
       <div className="absolute right-4 top-4 flex gap-2">
         <button className="arcade-btn pointer-events-auto bg-white/15 px-4 py-2" onMouseDown={(event) => event.preventDefault()} onClick={() => setScreen('settings')}>
@@ -107,7 +115,7 @@ export function LobbyHud() {
       </div>
       <div className="absolute bottom-4 left-4 max-w-sm rounded-2xl bg-ink/65 px-4 py-3 text-sm shadow-xl">
         <div>ZQSD, WASD ou flèches · Shift sprinter · Espace sauter</div>
-        <div className="text-cream/75">E interagir · 1 saluer · 2 danser · Entrée pour parler</div>
+        <div className="text-cream/75">E monter dans le bus · F départ · 1 saluer · 2 danser · Entrée parler</div>
       </div>
       {prompt && (
         <div className="absolute bottom-24 left-1/2 -translate-x-1/2 rounded-full bg-ink/75 px-4 py-2 text-sm font-bold">{prompt}</div>
@@ -122,7 +130,7 @@ export function LobbyHud() {
         <div className="absolute inset-0 grid place-items-center">
           <div className="text-center">
             <div className="text-8xl font-bold text-gold drop-shadow">{Math.max(1, Math.ceil(left / 1000))}</div>
-            <div className="mt-2 text-xl font-bold">Le supermarché ouvre</div>
+            <div className="mt-2 text-xl font-bold">Le bus part</div>
           </div>
         </div>
       )}
@@ -167,17 +175,17 @@ function promptFor(
   me: { host: boolean; ready: boolean },
   room: NonNullable<ReturnType<typeof useGame.getState>['room']>,
 ) {
+  const online = room.players.filter((player) => player.connected)
+  const allAboard = online.length > 0 && online.every((player) => player.ready)
+  if (room.phase === 'lobby' && allAboard && me.host && me.ready) return 'F · Départ'
   if (room.phase !== 'lobby' || !spot) return null
-  if (spot === 'ready') return me.ready ? 'E · Pas prêt' : 'E · Prêt · Manche 3 min'
+  if (spot === 'ready') return 'E · Supermarché · 3 min'
   if (spot === 'kiosk') return 'E · Personnaliser'
   if (spot === 'code') return 'E · Copier le code'
   if (spot === 'vend') return 'E · Distributeur'
   if (spot === 'hoop') return 'E · Panier'
-  const online = room.players.filter((player) => player.connected)
-  const hostOnline = online.some((player) => player.host)
-  if (hostOnline && !me.host) return 'L’hôte ouvre le magasin'
-  if (!online.every((player) => player.ready)) return 'Tout le monde doit être prêt'
-  return 'E · Lancer la manche'
+  if (me.ready) return 'E · Descendre'
+  return 'E · Monter'
 }
 
 function Kiosk({ onClose }: { onClose: () => void }) {
