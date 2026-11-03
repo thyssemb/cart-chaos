@@ -22,12 +22,18 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "apps/client/public/assets/models/food_pack.glb"
 DST = ROOT / "apps/client/public/assets/models/food_products.glb"
 
-# Node indices in the source. The longest edge becomes `size` metres.
+# name, source nodes, target height in metres, extra rotation after the Z-up fix.
+# Rotations stand flat cartons up without moving the face that already looks along Z.
 PRODUCTS = (
-    ("milk", (6, 7, 8), 0.26),
-    ("cheese", (13, 14, 15), 0.16),
-    ("cereal", (19, 20, 21, 22), 0.26),
-    ("drink", (92, 93, 94), 0.26),
+    ("milk", (6, 7, 8), 0.50, ("z", math.pi / 2)),
+    ("cereal", (19, 20, 21, 22), 0.56, ("z", math.pi / 2)),
+    ("cheese", (13, 14, 15), 0.34, None),
+    ("drink", (92, 93, 94), 0.52, None),
+    ("bread", (16, 17, 18), 0.40, None),
+    ("eggs", (46, 48), 0.40, None),
+    ("banana", (4, 5), 0.50, None),
+    ("frozen", (84, 85), 0.40, None),
+    ("chips", (76, 77, 78, 79), 0.30, None),
 )
 
 COMPONENTS = {5120: ("b", 1), 5121: ("B", 1), 5122: ("h", 2), 5123: ("H", 2), 5125: ("I", 4), 5126: ("f", 4)}
@@ -64,6 +70,19 @@ def read_accessor(doc: dict, blob: bytes, index: int) -> list[tuple[float, ...]]
 def yup(x: float, y: float, z: float) -> tuple[float, float, float]:
     """Sketchfab root turns SketchUp Z-up into glTF Y-up: (x, y, z) -> (x, z, -y)."""
     return (x, z, -y)
+
+
+def spin(v: tuple[float, float, float], turn: tuple[str, float] | None) -> tuple[float, float, float]:
+    if turn is None:
+        return v
+    axis, ang = turn
+    c, s = math.cos(ang), math.sin(ang)
+    x, y, z = v
+    if axis == "x":
+        return (x, c * y - s * z, s * y + c * z)
+    if axis == "z":
+        return (c * x - s * y, s * x + c * y, z)
+    return (c * x + s * z, y, -s * x + c * z)
 
 
 def normalize(v: tuple[float, float, float]) -> tuple[float, float, float]:
@@ -150,7 +169,7 @@ def main() -> None:
         new_materials.append({"name": source.get("name", f"mat-{source_index}"), "doubleSided": True, "pbrMetallicRoughness": pbr})
         return material_map[source_index]
 
-    for name, node_ids, size in PRODUCTS:
+    for name, node_ids, target_height, turn in PRODUCTS:
         child_nodes: list[int] = []
         world_points: list[tuple[float, float, float]] = []
         prepared: list[tuple[int, list[tuple[float, float, float]], list[tuple[float, float, float]], list[tuple[float, ...]] | None, list[int]]] = []
@@ -159,8 +178,8 @@ def main() -> None:
             primitive = doc["meshes"][doc["nodes"][node_id]["mesh"]]["primitives"][0]
             if primitive.get("mode", 4) != 4:
                 raise SystemExit(f"primitive non triangulée sur le nœud {node_id}")
-            positions = [yup(*p) for p in read_accessor(doc, blob, primitive["attributes"]["POSITION"])]
-            normals = [normalize(yup(*n)) for n in read_accessor(doc, blob, primitive["attributes"]["NORMAL"])]
+            positions = [spin(yup(*p), turn) for p in read_accessor(doc, blob, primitive["attributes"]["POSITION"])]
+            normals = [normalize(spin(yup(*n), turn)) for n in read_accessor(doc, blob, primitive["attributes"]["NORMAL"])]
             uv_index = primitive["attributes"].get("TEXCOORD_0")
             uvs = read_accessor(doc, blob, uv_index) if uv_index is not None else None
             raw_indices = read_accessor(doc, blob, primitive["indices"])
@@ -171,10 +190,10 @@ def main() -> None:
 
         (min_x, min_y, min_z), (max_x, max_y, max_z) = bounds(world_points)
         center = ((min_x + max_x) / 2, (min_y + max_y) / 2, (min_z + max_z) / 2)
-        extent = max(max_x - min_x, max_y - min_y, max_z - min_z)
-        if extent <= 0:
+        height = max_y - min_y
+        if height <= 0:
             raise SystemExit(f"{name} a une taille nulle")
-        scale = size / extent
+        scale = target_height / height
 
         for material, positions, normals, uvs, indices in prepared:
             placed = [((p[0] - center[0]) * scale, (p[1] - center[1]) * scale, (p[2] - center[2]) * scale) for p in positions]
@@ -253,8 +272,8 @@ def main() -> None:
     DST.write_bytes(glb)
     print(f"wrote {DST.relative_to(ROOT)} ({len(glb)} bytes, was {SRC.stat().st_size})")
     print("\n".join(report))
-    if len(glb) > 8_000_000:
-        raise SystemExit("le GLB allégé dépasse 8 Mo")
+    if len(glb) > 12_000_000:
+        raise SystemExit("le GLB allégé dépasse 12 Mo")
 
 
 if __name__ == "__main__":

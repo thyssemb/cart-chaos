@@ -141,6 +141,21 @@ export function makeSign(text: string, background: string, foreground: string) {
   })
 }
 
+export function makePrice(text: string) {
+  return canvasTexture(256, 96, (ctx) => {
+    ctx.fillStyle = '#fff8ea'
+    ctx.fillRect(0, 0, 256, 96)
+    ctx.strokeStyle = '#243038'
+    ctx.lineWidth = 8
+    ctx.strokeRect(6, 6, 244, 84)
+    ctx.fillStyle = '#243038'
+    ctx.font = '700 52px Fredoka, Trebuchet MS, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(text, 128, 50)
+  })
+}
+
 export function makeBasket() {
   const texture = canvasTexture(128, 128, (ctx) => {
     ctx.clearRect(0, 0, 128, 128)

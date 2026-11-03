@@ -91,54 +91,52 @@ export interface Home {
   z: number
 }
 
-function spot(shelfId: string, side: 'n' | 's' | 'e' | 'w', t: number, y: number) {
-  const shelf = SHELVES.find((s) => s.id === shelfId)
-  if (!shelf) throw new Error(`Rayon inconnu ${shelfId}`)
-  const b = shelfBounds(shelf)
-  const u = Math.min(0.92, Math.max(0.08, t))
-  if (side === 's') return { x: b.minX + (b.maxX - b.minX) * u, y, z: b.minZ - 0.28 }
-  if (side === 'n') return { x: b.minX + (b.maxX - b.minX) * u, y, z: b.maxZ + 0.28 }
-  if (side === 'e') return { x: b.maxX + 0.28, y, z: b.minZ + (b.maxZ - b.minZ) * u }
-  return { x: b.minX - 0.28, y, z: b.minZ + (b.maxZ - b.minZ) * u }
-}
+/** Top face of each shelf board, in metres. Shared by the visuals and the product spots. */
+export const SHELF_TOPS = [0.4, 1.0, 1.72] as const
 
-function add(homes: Home[], type: ProductType, shelf: string, side: 'n' | 's' | 'e' | 'w', t: number, y: number) {
-  const n = homes.filter((h) => h.type === type).length
-  const p = spot(shelf, side, t, y)
-  homes.push({ id: `${type}-${n}`, type, ...p })
+/** How far a product sits in from the aisle face, still on the board. */
+export const SHELF_INSET = 0.42
+
+/** Baked height of each product, matching tools/trim-food-pack.py. */
+export const PRODUCT_HEIGHT: Record<ProductType, number> = {
+  milk: 0.5,
+  bread: 0.4,
+  eggs: 0.4,
+  cheese: 0.34,
+  banana: 0.5,
+  cereal: 0.56,
+  drink: 0.52,
+  toilet: 0.38,
+  frozen: 0.4,
+  legendary: 0.42,
 }
 
 function buildHomes(): Home[] {
   const homes: Home[] = []
-  add(homes, 'banana', 'fruits', 's', 0.22, 1.12)
-  add(homes, 'banana', 'fruits', 's', 0.5, 1.12)
-  add(homes, 'banana', 'fruits', 's', 0.78, 1.12)
-  add(homes, 'milk', 'frais', 's', 0.18, 1.18)
-  add(homes, 'milk', 'frais', 's', 0.4, 1.18)
-  add(homes, 'milk', 'frais', 's', 0.62, 1.18)
-  add(homes, 'eggs', 'frais', 's', 0.18, 1.62)
-  add(homes, 'eggs', 'frais', 's', 0.4, 1.62)
-  add(homes, 'eggs', 'frais', 's', 0.62, 1.62)
-  add(homes, 'cheese', 'frais', 's', 0.74, 1.18)
-  add(homes, 'cheese', 'frais', 's', 0.86, 1.18)
-  add(homes, 'cheese', 'frais', 's', 0.8, 1.62)
-  add(homes, 'bread', 'r1', 'e', 0.22, 1.15)
-  add(homes, 'bread', 'r1', 'e', 0.5, 1.15)
-  add(homes, 'bread', 'r1', 'e', 0.78, 1.15)
-  add(homes, 'drink', 'r2', 'e', 0.22, 1.12)
-  add(homes, 'drink', 'r2', 'e', 0.5, 1.12)
-  add(homes, 'drink', 'r2', 'e', 0.78, 1.12)
-  add(homes, 'cereal', 'r3', 'e', 0.28, 1.2)
-  add(homes, 'cereal', 'r3', 'e', 0.55, 1.2)
-  add(homes, 'cereal', 'r3', 'e', 0.8, 1.2)
-  add(homes, 'toilet', 'r4', 'w', 0.25, 1.05)
-  add(homes, 'toilet', 'r4', 'w', 0.5, 1.05)
-  add(homes, 'toilet', 'r4', 'w', 0.75, 1.05)
-  add(homes, 'frozen', 'frozen', 's', 0.25, 1.2)
-  add(homes, 'frozen', 'frozen', 's', 0.5, 1.2)
-  add(homes, 'frozen', 'frozen', 's', 0.75, 1.2)
-  const legend = spot('promo', 'w', 0.62, 1.28)
-  homes.push({ id: 'legendary', type: 'legendary', ...legend })
+  const put = (type: ProductType, shelfId: string, side: 's' | 'e' | 'w', level: 0 | 1 | 2, slots: number[]) => {
+    const shelf = SHELVES.find((item) => item.id === shelfId)
+    if (!shelf) throw new Error(`Rayon inconnu ${shelfId}`)
+    const bounds = shelfBounds(shelf)
+    const y = SHELF_TOPS[level] + PRODUCT_HEIGHT[type] / 2
+    for (const t of slots) {
+      const n = homes.filter((home) => home.type === type).length
+      const alongX = bounds.minX + (bounds.maxX - bounds.minX) * t
+      const alongZ = bounds.minZ + (bounds.maxZ - bounds.minZ) * t
+      const x = side === 'e' ? bounds.maxX - SHELF_INSET : side === 'w' ? bounds.minX + SHELF_INSET : alongX
+      const z = side === 's' ? bounds.minZ + SHELF_INSET : alongZ
+      homes.push({ id: type === 'legendary' ? 'legendary' : `${type}-${n}`, type, x, y, z })
+    }
+  }
+  put('banana', 'fruits', 's', 1, [0.28, 0.5, 0.72])
+  put('cheese', 'frais', 's', 0, [0.22, 0.4, 0.58])
+  put('milk', 'frais', 's', 1, [0.28, 0.5, 0.72])
+  put('eggs', 'frais', 's', 2, [0.28, 0.5, 0.72])
+  put('bread', 'r1', 'e', 1, [0.32, 0.5, 0.68])
+  put('drink', 'r2', 'e', 1, [0.32, 0.5, 0.68])
+  put('cereal', 'r3', 'e', 1, [0.32, 0.5, 0.68])
+  put('toilet', 'r4', 'w', 1, [0.32, 0.5, 0.68])
+  put('frozen', 'frozen', 's', 1, [0.28, 0.5, 0.72])
+  put('legendary', 'promo', 'w', 2, [0.55])
   return homes
 }
 
@@ -164,5 +162,5 @@ export function checkoutReady(px: number, pz: number, cx: number, cz: number): n
 export const CART_SLOTS: [number, number, number][] = Array.from({ length: 8 }, (_, i) => {
   const col = i % 4
   const row = Math.floor(i / 4)
-  return [(col - 1.5) * 0.16, 0.58, row === 0 ? 0.1 : -0.12]
+  return [(col - 1.5) * 0.24, 0.6, row === 0 ? 0.16 : -0.18]
 })

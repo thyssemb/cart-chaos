@@ -3,6 +3,7 @@ import {
   CART_RADIUS,
   CONTROLLER,
   HOMES,
+  INTERACT_RANGE,
   LEGENDARY_AT_MS,
   OBSTACLES,
   PLAYER_RADIUS,
@@ -76,9 +77,22 @@ describe('vol', () => {
 })
 
 describe('carte et déplacement', () => {
-  it('place les produits et les spawns hors des rayons', () => {
+  it('pose les produits sur les rayons, à portée de main', () => {
     for (const home of HOMES) {
-      expect(collides(home.x, home.z, 0.18, OBSTACLES), home.id).toBe(false)
+      const shelf = OBSTACLES.find((obstacle) => home.x >= obstacle.minX && home.x <= obstacle.maxX && home.z >= obstacle.minZ && home.z <= obstacle.maxZ)
+      expect(shelf, home.id).toBeTruthy()
+      const gap = Math.min(home.x - shelf!.minX, shelf!.maxX - home.x, home.z - shelf!.minZ, shelf!.maxZ - home.z)
+      expect(gap + PLAYER_RADIUS, home.id).toBeLessThan(INTERACT_RANGE)
+      expect(home.y).toBeGreaterThan(0.45)
+      expect(home.y).toBeLessThan(2.15)
+    }
+    for (let i = 0; i < HOMES.length; i += 1) {
+      for (let j = i + 1; j < HOMES.length; j += 1) {
+        const a = HOMES[i]!
+        const b = HOMES[j]!
+        if (Math.abs(a.y - b.y) > 0.25) continue
+        expect(Math.hypot(a.x - b.x, a.z - b.z), `${a.id} ${b.id}`).toBeGreaterThan(0.6)
+      }
     }
     expect(HOMES.filter((home) => home.type === 'legendary')).toHaveLength(1)
     for (const spawn of SPAWNS) {

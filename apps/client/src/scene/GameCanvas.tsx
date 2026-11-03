@@ -1,6 +1,7 @@
 import {
   CART_RADIUS,
   CART_SLOTS,
+  PRODUCT_HEIGHT,
   OBSTACLES,
   cartAnchor,
   collides,
@@ -16,7 +17,7 @@ import { footstep, setListener, setWheel } from '../audio'
 import { sendAction, sendInput } from '../net'
 import { useGame } from '../store'
 import { Actors, DemoCrew } from './Actors'
-import { isPackedProduct, shelfFacing } from './foodPack'
+import { shelfFacing } from './foodPack'
 import { Supermarket } from './Supermarket'
 import { control, lerpAngle, readInput, views } from '../views'
 
@@ -305,27 +306,28 @@ function Simulation() {
       let y = product.y
       let z = product.z
       let yaw = 0
+      let scale = 1
       if (product.state === 'cart' && product.ownerId) {
         const cart = room.carts.find((item) => item.ownerId === product.ownerId && item.itemIds.includes(product.id))
         const pose = cart ? views.carts.get(cart.id) : undefined
         if (cart && pose) {
           const index = Math.max(0, cart.itemIds.indexOf(product.id))
           const world = slotWorld(pose.x, pose.z, pose.yaw, CART_SLOTS[index] ?? CART_SLOTS[0]!)
+          scale = 0.68
           x = world.x
-          y = world.y
+          y = world.y + (PRODUCT_HEIGHT[product.type] * scale) / 2
           z = world.z
-          yaw = pose.yaw
-          if (isPackedProduct(product.type)) y += 0.12
+          yaw = pose.yaw + Math.PI
         }
       } else if (product.state === 'carried' && product.ownerId) {
         const owner = views.players.get(product.ownerId)
         if (owner) {
-          const side = 0.58
-          const forward = 0.34
+          const side = 1.05
+          const forward = 0.08
           x = owner.x + Math.sin(owner.yaw) * forward + Math.cos(owner.yaw) * side
           z = owner.z + Math.cos(owner.yaw) * forward - Math.sin(owner.yaw) * side
-          y = owner.y + 1.08
-          yaw = owner.yaw
+          y = owner.y + 0.92
+          yaw = owner.yaw + Math.PI
         }
       } else if (product.state === 'shelf') {
         yaw = shelfFacing(x, z)
@@ -335,6 +337,7 @@ function Simulation() {
         y,
         z,
         yaw,
+        scale,
         visible: product.state !== 'hidden' && product.state !== 'validated',
         beacon: product.type === 'legendary' && product.state !== 'hidden' && product.state !== 'validated',
       })

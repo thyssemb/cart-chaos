@@ -790,7 +790,8 @@ export class Room {
 
   private nearestLoose(player: Player) {
     let best: Product | null = null
-    let bestDist = INTERACT_RANGE
+    // The cart stops the body short of the shelf, and the package extends in front of its center.
+    let bestDist = INTERACT_RANGE + 0.75
     for (const product of this.products.values()) {
       if (product.state !== 'shelf' && product.state !== 'ground') continue
       const dist = Math.hypot(player.x - product.x, player.z - product.z)

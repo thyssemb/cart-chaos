@@ -337,10 +337,10 @@ export function CartModel({ id, colorId }: { id: string; colorId?: string }) {
     <group ref={group}>
       <group ref={wheels}>
         {[
-          [-0.28, 0.1, 0.32],
-          [0.28, 0.1, 0.32],
-          [-0.28, 0.1, -0.28],
-          [0.28, 0.1, -0.28],
+          [-0.36, 0.1, 0.4],
+          [0.36, 0.1, 0.4],
+          [-0.36, 0.1, -0.36],
+          [0.36, 0.1, -0.36],
         ].map((position) => (
           <mesh key={position.join()} position={position as [number, number, number]} rotation={[0, 0, Math.PI / 2]} castShadow>
             <cylinderGeometry args={[0.08, 0.08, 0.06, 10]} />
@@ -348,28 +348,32 @@ export function CartModel({ id, colorId }: { id: string; colorId?: string }) {
           </mesh>
         ))}
       </group>
-      <mesh position={[0, 0.22, 0.05]}>
-        <boxGeometry args={[0.62, 0.05, 0.78]} />
+      <mesh position={[0, 0.28, 0.02]}>
+        <boxGeometry args={[0.92, 0.05, 1.02]} />
         <meshStandardMaterial color="#c5ced6" metalness={0.6} roughness={0.3} />
       </mesh>
-      <mesh position={[0, 0.48, 0]}>
-        <boxGeometry args={[0.7, 0.36, 0.86]} />
+      <mesh position={[0, 0.58, 0.02]} receiveShadow>
+        <boxGeometry args={[0.9, 0.04, 1.0]} />
+        <meshStandardMaterial color="#d5dee6" metalness={0.35} roughness={0.45} />
+      </mesh>
+      <mesh position={[0, 0.7, 0.02]}>
+        <boxGeometry args={[1.02, 0.22, 1.12]} />
         <meshStandardMaterial map={basket} transparent metalness={0.45} roughness={0.4} />
       </mesh>
-      <mesh position={[0, 0.78, -0.46]}>
-        <boxGeometry args={[0.46, 0.08, 0.08]} />
+      <mesh position={[0, 0.86, -0.58]}>
+        <boxGeometry args={[0.62, 0.08, 0.08]} />
         <meshStandardMaterial color="#e23b3b" />
       </mesh>
-      <mesh position={[-0.22, 0.62, -0.42]}>
-        <boxGeometry args={[0.05, 0.34, 0.05]} />
+      <mesh position={[-0.28, 0.66, -0.54]}>
+        <boxGeometry args={[0.05, 0.42, 0.05]} />
         <meshStandardMaterial color="#d5dee6" metalness={0.5} />
       </mesh>
-      <mesh position={[0.22, 0.62, -0.42]}>
-        <boxGeometry args={[0.05, 0.34, 0.05]} />
+      <mesh position={[0.28, 0.66, -0.54]}>
+        <boxGeometry args={[0.05, 0.42, 0.05]} />
         <meshStandardMaterial color="#d5dee6" metalness={0.5} />
       </mesh>
-      <mesh position={[0, 0.34, 0.46]}>
-        <boxGeometry args={[0.5, 0.08, 0.08]} />
+      <mesh position={[0, 0.36, 0.58]}>
+        <boxGeometry args={[0.72, 0.08, 0.08]} />
         <meshStandardMaterial color={palette.hex} />
       </mesh>
     </group>
@@ -385,6 +389,8 @@ function ProductModel({ id }: { id: string }) {
     group.current.visible = pose.visible
     group.current.position.set(pose.x, pose.y, pose.z)
     group.current.rotation.y = pose.yaw
+    const scale = pose.scale ?? 1
+    group.current.scale.set(scale, scale, scale)
   })
   if (!type) return null
   return (
@@ -416,14 +422,15 @@ function ProceduralProduct({ type }: { type: ProductType }) {
     )
   }
   if (type === 'toilet' || type === 'legendary') {
+    const radius = type === 'legendary' ? 0.21 : 0.19
     return (
       <group>
         <mesh castShadow rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.12, 0.12, 0.28, 12]} />
+          <cylinderGeometry args={[radius, radius, 0.42, 16]} />
           <meshStandardMaterial color={def.color} emissive={type === 'legendary' ? '#ffd700' : '#000'} emissiveIntensity={type === 'legendary' ? 0.7 : 0} />
         </mesh>
         <mesh rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.05, 0.05, 0.3, 8]} />
+          <cylinderGeometry args={[radius * 0.42, radius * 0.42, 0.46, 10]} />
           <meshStandardMaterial color={def.accent} />
         </mesh>
       </group>

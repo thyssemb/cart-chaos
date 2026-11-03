@@ -27,6 +27,7 @@ export interface ProductPose {
   y: number
   z: number
   yaw: number
+  scale: number
   visible: boolean
   beacon: boolean
 }

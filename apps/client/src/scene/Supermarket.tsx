@@ -1,15 +1,13 @@
-import { SHELVES, CHECKOUTS } from '@cart-chaos/shared'
+import { CHECKOUTS, HOMES, SHELF_INSET, SHELF_TOPS, SHELVES } from '@cart-chaos/shared'
 import { CuboidCollider, RigidBody } from '@react-three/rapier'
-import { useLayoutEffect, useMemo, useRef } from 'react'
-import * as THREE from 'three'
-import { makeSign, makeTiles } from './textures'
-
-const goods = ['#ff5d6c', '#ffd23f', '#2ec4b6', '#4d96ff', '#ff8c42', '#d28bff', '#7bed9f', '#fff7ea', '#f08a5d', '#7ad0ff']
+import { useMemo } from 'react'
+import type { Texture } from 'three'
+import { ShelfStock } from './shelfStock'
+import { makePrice, makeSign, makeTiles } from './textures'
 
 export function Supermarket({ physics = true }: { physics?: boolean }) {
   const tiles = useMemo(() => makeTiles(), [])
   const sign = useMemo(() => makeSign('SUPERMARKET', '#ff9f1c', '#fff8ea'), [])
-  const deco = useMemo(() => buildDeco(), [])
   return (
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 2]} receiveShadow>
@@ -25,7 +23,7 @@ export function Supermarket({ physics = true }: { physics?: boolean }) {
       {SHELVES.map((shelf) => (
         <Shelf key={shelf.id} shelf={shelf} />
       ))}
-      <Deco spots={deco} />
+      <ShelfStock />
       {CHECKOUTS.map((zone) => (
         <mesh key={zone.id} rotation={[-Math.PI / 2, 0, 0]} position={[(zone.minX + zone.maxX) / 2, 0.02, (zone.minZ + zone.maxZ) / 2]}>
           <planeGeometry args={[zone.maxX - zone.minX, zone.maxZ - zone.minZ]} />
@@ -74,7 +72,7 @@ function Ceiling() {
   )
 }
 
-function Walls({ sign }: { sign: THREE.Texture }) {
+function Walls({ sign }: { sign: Texture }) {
   const wall = '#fff3d4'
   const trim = '#d8f5df'
   return (
@@ -158,8 +156,31 @@ function Hanging({ text, position, color }: { text: string; position: [number, n
   )
 }
 
+const PRICES: Record<string, string> = {
+  fruits: '1,20 €',
+  frais: '2,40 €',
+  frozen: '3,10 €',
+  r1: '1,50 €',
+  r2: '1,80 €',
+  r3: '2,90 €',
+  r4: '1,10 €',
+  promo: '0,99 €',
+}
+
+function postStops(length: number, step: number) {
+  const stops = [-length / 2 + 0.05]
+  let cursor = stops[0]! + step
+  while (cursor < length / 2 - step * 0.55) {
+    stops.push(Number(cursor.toFixed(3)))
+    cursor += step
+  }
+  stops.push(length / 2 - 0.05)
+  return stops
+}
+
 function Shelf({ shelf }: { shelf: (typeof SHELVES)[number] }) {
   const label = useMemo(() => makeSign(shelf.label, shelf.trim, '#243038'), [shelf])
+  const price = useMemo(() => makePrice(PRICES[shelf.id] ?? '1,50 €'), [shelf.id])
   if (shelf.kind === 'checkout') {
     return (
       <group position={[shelf.x, 0, shelf.z]}>
@@ -182,103 +203,166 @@ function Shelf({ shelf }: { shelf: (typeof SHELVES)[number] }) {
       </group>
     )
   }
-  const glass = shelf.kind === 'fridge' || shelf.kind === 'freezer'
+
+  const { w, d } = shelf
+  const alongZ = shelf.kind === 'gondola' || shelf.kind === 'promo'
+  const double = shelf.kind === 'gondola'
+  const frame = '#d7e0e8'
+  const board = '#fff6e8'
+  const long = alongZ ? d : w
+  const count = alongZ ? 9 : 8
+  const cuts = Array.from({ length: count - 1 }, (_, index) => ((index + 1) / count - 0.5) * long).filter((along) =>
+    HOMES.every((home) => {
+      if (Math.abs(home.x - shelf.x) > w / 2 || Math.abs(home.z - shelf.z) > d / 2) return true
+      const homeAlong = alongZ ? home.z - shelf.z : home.x - shelf.x
+      return Math.abs(homeAlong - along) >= 0.36
+    }),
+  )
+  const faces: Array<'s' | 'e' | 'w'> = alongZ ? (shelf.kind === 'promo' ? ['w'] : ['e', 'w']) : ['s']
+  const xPosts = alongZ ? [-w / 2 + 0.05, w / 2 - 0.05] : postStops(w, 1.65).filter((value) => Math.abs(value) < w / 2 - 0.2)
+  const zPosts = alongZ ? postStops(d, 1.7).filter((value) => Math.abs(value) < d / 2 - 0.2) : [-d / 2 + 0.05, d / 2 - 0.05]
+  const tagAlong = [-2.5, 0, 2.5].filter((value) => Math.abs(value) < long / 2 - 0.5)
+
   return (
     <group position={[shelf.x, 0, shelf.z]}>
-      <mesh position={[0, shelf.h / 2, 0]} castShadow receiveShadow>
-        <boxGeometry args={[shelf.w, shelf.h, shelf.d]} />
-        <meshStandardMaterial color={shelf.color} />
-      </mesh>
-      <mesh position={[0, shelf.h + 0.04, 0]}>
-        <boxGeometry args={[shelf.w + 0.08, 0.08, shelf.d + 0.08]} />
+      <mesh position={[0, 0.08, 0]} receiveShadow>
+        <boxGeometry args={[w, 0.16, d]} />
         <meshStandardMaterial color={shelf.trim} />
       </mesh>
-      {glass && (
-        <mesh position={[0, shelf.h * 0.55, -(shelf.d / 2 + 0.02)]}>
-          <planeGeometry args={[shelf.w * 0.86, shelf.h * 0.62]} />
-          <meshStandardMaterial color="#e9fbff" transparent opacity={0.45} side={THREE.DoubleSide} />
+      {[
+        [-w / 2 + 0.05, -d / 2 + 0.05],
+        [w / 2 - 0.05, -d / 2 + 0.05],
+        [-w / 2 + 0.05, d / 2 - 0.05],
+        [w / 2 - 0.05, d / 2 - 0.05],
+      ].map(([x, z]) => (
+        <mesh key={`corner-${x}-${z}`} position={[x, 1.16, z]} castShadow>
+          <boxGeometry args={[0.08, 2.24, 0.08]} />
+          <meshStandardMaterial color={shelf.trim} />
+        </mesh>
+      ))}
+      {xPosts.flatMap((x) =>
+        zPosts.map((z) => (
+          <mesh key={`post-${x}-${z}`} position={[x, 1.16, z]} castShadow>
+            <boxGeometry args={[0.07, 2.24, 0.07]} />
+            <meshStandardMaterial color={shelf.trim} />
+          </mesh>
+        )),
+      )}
+      {double ? (
+        <mesh position={[0, 1.16, 0]} receiveShadow>
+          <boxGeometry args={[0.06, 2.16, d - 0.18]} />
+          <meshStandardMaterial color={shelf.color} />
+        </mesh>
+      ) : alongZ ? (
+        <mesh position={[w / 2 - 0.06, 1.16, 0]} receiveShadow>
+          <boxGeometry args={[0.06, 2.16, d - 0.16]} />
+          <meshStandardMaterial color={shelf.color} />
+        </mesh>
+      ) : (
+        <mesh position={[0, 1.16, d / 2 - 0.06]} receiveShadow>
+          <boxGeometry args={[w - 0.16, 2.16, 0.06]} />
+          <meshStandardMaterial color={shelf.color} />
         </mesh>
       )}
-      {shelf.kind === 'gondola' && (
-        <mesh position={[0, 0.85, 0]}>
-          <boxGeometry args={[shelf.w + 0.05, 0.06, shelf.d * 0.92]} />
-          <meshStandardMaterial color="#fff7ea" />
-        </mesh>
+      {SHELF_TOPS.map((top) => {
+        const y = top - 0.03
+        if (double) {
+          return (
+            <group key={`board-${top}`}>
+              <mesh position={[w / 4, y, 0]} castShadow receiveShadow>
+                <boxGeometry args={[w / 2 - 0.1, 0.06, d - 0.22]} />
+                <meshStandardMaterial color={board} />
+              </mesh>
+              <mesh position={[-w / 4, y, 0]} castShadow receiveShadow>
+                <boxGeometry args={[w / 2 - 0.1, 0.06, d - 0.22]} />
+                <meshStandardMaterial color={board} />
+              </mesh>
+            </group>
+          )
+        }
+        if (alongZ) {
+          return (
+            <mesh key={`board-${top}`} position={[-0.03, y, 0]} castShadow receiveShadow>
+              <boxGeometry args={[w - 0.16, 0.06, d - 0.22]} />
+              <meshStandardMaterial color={board} />
+            </mesh>
+          )
+        }
+        return (
+          <mesh key={`board-${top}`} position={[0, y, -0.04]} castShadow receiveShadow>
+            <boxGeometry args={[w - 0.14, 0.06, d - 0.18]} />
+            <meshStandardMaterial color={board} />
+          </mesh>
+        )
+      })}
+      {faces.flatMap((face) =>
+        SHELF_TOPS.flatMap((top, level) => {
+          const next = SHELF_TOPS[level + 1]
+          const height = (next ?? top + 0.34) - top - 0.08
+          const y = top + height / 2
+          return cuts.map((along) => {
+            const position: [number, number, number] =
+              face === 's' ? [along, y, -d / 2 + SHELF_INSET] : face === 'e' ? [w / 2 - SHELF_INSET, y, along] : [-w / 2 + SHELF_INSET, y, along]
+            const size: [number, number, number] = face === 's' ? [0.03, height, 0.16] : [0.16, height, 0.03]
+            return (
+              <mesh key={`div-${face}-${top}-${along}`} position={position}>
+                <boxGeometry args={size} />
+                <meshStandardMaterial color={frame} />
+              </mesh>
+            )
+          })
+        }),
       )}
-      <sprite position={[0, shelf.h + 0.55, 0]} scale={[Math.min(2.4, shelf.w * 0.85), 0.46, 1]}>
-        <spriteMaterial map={label} transparent depthTest={false} />
-      </sprite>
+      {topTags(faces, tagAlong, w, d).map((tag) => (
+        <mesh key={tag.key} position={tag.position} rotation={tag.rotation}>
+          <planeGeometry args={[0.42, 0.16]} />
+          <meshBasicMaterial map={price} toneMapped={false} />
+        </mesh>
+      ))}
+      {headerSpots(alongZ, double, w, d).map((spot) => (
+        <group key={spot.key} position={spot.position} rotation={spot.rotation}>
+          <mesh position={[0, 0, -0.03]}>
+            <boxGeometry args={[1.7, 0.42, 0.06]} />
+            <meshStandardMaterial color={shelf.trim} />
+          </mesh>
+          <mesh>
+            <planeGeometry args={[1.5, 0.3]} />
+            <meshBasicMaterial map={label} toneMapped={false} />
+          </mesh>
+        </group>
+      ))}
     </group>
   )
 }
 
-function buildDeco() {
-  const spots: { position: [number, number, number]; color: string; scale: [number, number, number] }[] = []
-  SHELVES.forEach((shelf, shelfIndex) => {
-    if (shelf.kind === 'checkout') return
-    const alongZ = shelf.kind === 'gondola' || shelf.kind === 'promo'
-    const count = alongZ ? 8 : 6
-    const layers = shelf.kind === 'produce' ? [shelf.h + 0.22] : [0.48, Math.min(shelf.h - 0.28, 1.05)]
-    const sides = alongZ ? ([-1, 1] as const) : ([-1] as const)
-    sides.forEach((side, sideIndex) => {
-      for (let i = 0; i < count; i += 1) {
-        const u = (i + 0.5) / count - 0.5
-        const y = layers[(i + sideIndex) % layers.length]!
-        const position: [number, number, number] = alongZ
-          ? [shelf.x + side * (shelf.w / 2 + 0.16), y, shelf.z + u * shelf.d * 0.82]
-          : [shelf.x + u * shelf.w * 0.78, y, shelf.z - shelf.d / 2 - 0.16]
-        const tall = (i + shelfIndex) % 3 === 0
-        spots.push({
-          position,
-          color: goods[(i + shelfIndex + sideIndex) % goods.length]!,
-          scale: tall ? [0.22, 0.42, 0.18] : [0.3, 0.26, 0.2],
-        })
+function topTags(faces: Array<'s' | 'e' | 'w'>, along: number[], w: number, d: number) {
+  const tags: { key: string; position: [number, number, number]; rotation: [number, number, number] }[] = []
+  for (const face of faces) {
+    for (const top of [SHELF_TOPS[0], SHELF_TOPS[1]]) {
+      for (const value of along) {
+        const y = top - 0.16
+        if (face === 's') tags.push({ key: `${face}-${top}-${value}`, position: [value, y, -d / 2 + 0.02], rotation: [0, Math.PI, 0] })
+        if (face === 'e') tags.push({ key: `${face}-${top}-${value}`, position: [w / 2 - 0.02, y, value], rotation: [0, -Math.PI / 2, 0] })
+        if (face === 'w') tags.push({ key: `${face}-${top}-${value}`, position: [-w / 2 + 0.02, y, value], rotation: [0, Math.PI / 2, 0] })
       }
-    })
-  })
-  return spots
+    }
+  }
+  return tags
 }
 
-function Deco({ spots }: { spots: { position: [number, number, number]; color: string; scale: [number, number, number] }[] }) {
-  const boxes = spots.filter((_, index) => index % 3 !== 0)
-  const cans = spots.filter((_, index) => index % 3 === 0)
-  return (
-    <>
-      <ShelfGoods spots={boxes} shape="box" />
-      <ShelfGoods spots={cans} shape="can" />
-    </>
-  )
-}
-
-function ShelfGoods({
-  spots,
-  shape,
-}: {
-  spots: { position: [number, number, number]; color: string; scale: [number, number, number] }[]
-  shape: 'box' | 'can'
-}) {
-  const ref = useRef<THREE.InstancedMesh>(null)
-  useLayoutEffect(() => {
-    const mesh = ref.current
-    if (!mesh) return
-    const dummy = new THREE.Object3D()
-    spots.forEach((spot, index) => {
-      dummy.position.set(spot.position[0], spot.position[1], spot.position[2])
-      dummy.scale.set(shape === 'can' ? spot.scale[0] * 0.7 : spot.scale[0], spot.scale[1], shape === 'can' ? spot.scale[0] * 0.7 : spot.scale[2])
-      dummy.rotation.y = (index % 5) * 0.15
-      dummy.updateMatrix()
-      mesh.setMatrixAt(index, dummy.matrix)
-      mesh.setColorAt(index, new THREE.Color(spot.color))
-    })
-    mesh.instanceMatrix.needsUpdate = true
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
-  }, [spots, shape])
-  if (spots.length === 0) return null
-  return (
-    <instancedMesh ref={ref} args={[undefined, undefined, spots.length]} castShadow>
-      {shape === 'can' ? <cylinderGeometry args={[0.5, 0.5, 1, 8]} /> : <boxGeometry args={[1, 1, 1]} />}
-      <meshStandardMaterial roughness={0.65} />
-    </instancedMesh>
+function headerSpots(alongZ: boolean, double: boolean, w: number, d: number) {
+  const y = 2.42
+  if (!alongZ) {
+    return [{ key: 's', position: [0, y, -d / 2 + 0.12] as [number, number, number], rotation: [0, Math.PI, 0] as [number, number, number] }]
+  }
+  const places = [-2.3, 2.3].filter((value) => Math.abs(value) < d / 2 - 0.9)
+  const faces: Array<'e' | 'w'> = double ? ['e', 'w'] : ['w']
+  return faces.flatMap((face) =>
+    places.map((z) => ({
+      key: `${face}-${z}`,
+      position: [face === 'e' ? w / 2 - 0.08 : -w / 2 + 0.08, y, z] as [number, number, number],
+      rotation: [0, face === 'e' ? -Math.PI / 2 : Math.PI / 2, 0] as [number, number, number],
+    })),
   )
 }
 

@@ -5,9 +5,9 @@ import type { Mesh } from 'three'
 
 const FOOD_URL = '/assets/models/food_products.glb'
 
-export type PackedProduct = 'milk' | 'cheese' | 'cereal' | 'drink'
+export type PackedProduct = Exclude<ProductType, 'toilet' | 'legendary'>
 
-const PACKED: PackedProduct[] = ['milk', 'cheese', 'cereal', 'drink']
+const PACKED: PackedProduct[] = ['milk', 'bread', 'eggs', 'cheese', 'banana', 'cereal', 'drink', 'frozen']
 
 export function isPackedProduct(type: ProductType): type is PackedProduct {
   return (PACKED as string[]).includes(type)
@@ -66,6 +66,10 @@ export function FoodProduct({ type, fallback }: { type: PackedProduct; fallback:
       </Suspense>
     </ModelError>
   )
+}
+
+export function useFoodScene() {
+  return useGLTF(FOOD_URL)
 }
 
 useGLTF.preload(FOOD_URL)
