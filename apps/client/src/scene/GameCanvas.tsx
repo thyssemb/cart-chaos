@@ -16,6 +16,7 @@ import { footstep, setListener, setWheel } from '../audio'
 import { sendAction, sendInput } from '../net'
 import { useGame } from '../store'
 import { Actors, DemoCrew } from './Actors'
+import { isPackedProduct, shelfFacing } from './foodPack'
 import { Supermarket } from './Supermarket'
 import { control, lerpAngle, readInput, views } from '../views'
 
@@ -314,15 +315,20 @@ function Simulation() {
           y = world.y
           z = world.z
           yaw = pose.yaw
+          if (isPackedProduct(product.type)) y += 0.12
         }
       } else if (product.state === 'carried' && product.ownerId) {
         const owner = views.players.get(product.ownerId)
         if (owner) {
-          x = owner.x + Math.sin(owner.yaw) * 0.46 + Math.cos(owner.yaw) * 0.22
-          z = owner.z + Math.cos(owner.yaw) * 0.46 - Math.sin(owner.yaw) * 0.22
-          y = owner.y + 1.22
+          const side = 0.58
+          const forward = 0.34
+          x = owner.x + Math.sin(owner.yaw) * forward + Math.cos(owner.yaw) * side
+          z = owner.z + Math.cos(owner.yaw) * forward - Math.sin(owner.yaw) * side
+          y = owner.y + 1.08
           yaw = owner.yaw
         }
+      } else if (product.state === 'shelf') {
+        yaw = shelfFacing(x, z)
       }
       views.products.set(product.id, {
         x,

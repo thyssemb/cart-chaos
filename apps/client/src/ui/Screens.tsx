@@ -77,6 +77,14 @@ export function Menu() {
         )}
         {error && <p className="mt-4 rounded-2xl bg-coral/80 px-3 py-2 text-sm">{error}</p>}
         <p className="mt-4 text-xs text-cream/60">{connected ? 'Serveur connecté' : 'Connexion au serveur…'}</p>
+        <a
+          className="mt-2 block text-[10px] leading-tight text-cream/45 underline-offset-2 hover:underline"
+          href="https://sketchfab.com/3d-models/food-pack-195c0c0d23e14e4693c640b16734714c"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Aliments : Food pack de Pasha, CC BY 4.0
+        </a>
       </div>
     </div>
   )

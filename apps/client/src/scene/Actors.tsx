@@ -3,6 +3,7 @@ import { useMemo, useRef } from 'react'
 import type { Group, Mesh } from 'three'
 import { useFrame } from '@react-three/fiber'
 import { useGame } from '../store'
+import { FoodProduct, isPackedProduct } from './foodPack'
 import { makeBasket, makeFace, makeLabel, makeOveralls } from './textures'
 import { views } from '../views'
 
@@ -394,6 +395,11 @@ function ProductModel({ id }: { id: string }) {
 }
 
 function ProductShape({ type }: { type: ProductType }) {
+  if (!isPackedProduct(type)) return <ProceduralProduct type={type} />
+  return <FoodProduct type={type} fallback={<ProceduralProduct type={type} />} />
+}
+
+function ProceduralProduct({ type }: { type: ProductType }) {
   const def = CATALOG[type]
   if (type === 'drink') {
     return (
