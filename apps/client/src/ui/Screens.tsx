@@ -1,4 +1,5 @@
 import { ACCESSORIES, COLORS, FACES, MAX_PLAYERS, MIN_PLAYERS, playerName } from '@cart-chaos/shared'
+import { SENSITIVITY_MAX, SENSITIVITY_MIN } from '../scene/cameraRig'
 import { useEffect, useRef, useState } from 'react'
 import { playUi, syncAudio } from '../audio'
 import { createRoom, joinRoom, sendChat, sendLeave, sendLook, sendReady, sendStart } from '../net'
@@ -175,7 +176,7 @@ export function HowTo() {
         <h2 className="text-4xl font-bold">Comment jouer</h2>
         <ul className="mt-4 space-y-2 text-lg leading-snug">
           <li>ZQSD, WASD ou les flèches se déplacent par rapport à la caméra. Shift sprinte, Espace saute.</li>
-          <li>La souris tourne la caméra après un clic. Échap met en pause locale.</li>
+          <li>Après un clic, la souris tourne la caméra et regarde en haut et en bas. Échap met en pause locale.</li>
           <li>F saisit ou lâche ton caddie. E ramasse, dépose, vole ou passe en caisse.</li>
           <li>Le clic gauche bouscule. Un choc peut faire tomber un produit.</li>
           <li>Ta liste ne compte qu’une fois les articles passés en caisse.</li>
@@ -196,8 +197,8 @@ export function Settings() {
   const setScreen = useGame((state) => state.setScreen)
   const inLobby = useGame((state) => state.screen === 'settings' && state.room?.phase === 'lobby')
   return (
-    <div className="absolute inset-0 grid place-items-center p-6">
-      <div className="w-[min(440px,94vw)] rounded-[2rem] bg-ink/80 p-7">
+    <div className="absolute inset-0 grid place-items-center overflow-auto p-6">
+      <div className="max-h-[92vh] w-[min(440px,94vw)] overflow-y-auto rounded-[2rem] bg-ink/80 p-7">
         <h2 className="text-4xl font-bold">Réglages</h2>
         <label className="mt-4 block text-sm">
           Pseudo
@@ -264,6 +265,27 @@ export function Settings() {
             value={settings.camera}
             onChange={(event) => setSettings({ camera: Number(event.target.value) })}
           />
+        </label>
+        <label className="mt-4 block text-sm">
+          Sensibilité souris {Math.round(settings.sensitivity * 100)}%
+          <input
+            className="mt-2 w-full"
+            type="range"
+            min={SENSITIVITY_MIN}
+            max={SENSITIVITY_MAX}
+            step={0.05}
+            value={settings.sensitivity}
+            onChange={(event) => setSettings({ sensitivity: Number(event.target.value) })}
+          />
+        </label>
+        <label className="mt-4 flex items-center gap-3 text-sm">
+          <input
+            className="h-4 w-4 accent-gold"
+            type="checkbox"
+            checked={settings.invertY}
+            onChange={(event) => setSettings({ invertY: event.target.checked })}
+          />
+          Inverser l'axe vertical
         </label>
         <button className="arcade-btn mt-6 bg-gold px-5 py-3 text-ink" onClick={() => setScreen(inLobby ? 'lobby' : 'menu')}>
           Retour

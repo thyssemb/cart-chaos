@@ -1,6 +1,7 @@
 import type { AccessoryId, ColorId, FaceId, PublicRoom } from '@cart-chaos/shared'
 import { sanitizeAccessory, sanitizeColor, sanitizeFace } from '@cart-chaos/shared'
 import { create } from 'zustand'
+import { clampSensitivity } from './scene/cameraRig'
 
 export type Screen = 'menu' | 'customize' | 'howto' | 'settings' | 'lobby' | 'game'
 
@@ -13,6 +14,8 @@ export interface Settings {
   music: number
   sfx: number
   camera: number
+  sensitivity: number
+  invertY: boolean
 }
 
 interface State {
@@ -43,29 +46,36 @@ interface State {
 const SETTINGS_KEY = 'cart-chaos-settings'
 const SESSION_KEY = 'cart-chaos-session'
 
-function loadSettings(): Settings {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY)
-    if (!raw) return defaultSettings()
-    const parsed = JSON.parse(raw) as Partial<Settings>
-    return {
-      ...defaultSettings(),
-      name: typeof parsed.name === 'string' ? parsed.name.slice(0, 16) : '',
-      colorId: sanitizeColor(parsed.colorId) ?? 'coral',
-      faceId: sanitizeFace(parsed.faceId) ?? 'smile',
-      accessory: sanitizeAccessory(parsed.accessory) ?? 'none',
-      master: clamp01(parsed.master, 0.85),
-      music: clamp01(parsed.music, 0.35),
-      sfx: clamp01(parsed.sfx, 0.8),
-      camera: clamp01(parsed.camera, 1),
-    }
-  } catch {
-    return defaultSettings()
+export function normalizeSettings(parsed?: Partial<Settings> | null): Settings {
+  const source = parsed && typeof parsed === 'object' ? parsed : {}
+  return {
+    name: typeof source.name === 'string' ? source.name.slice(0, 16) : '',
+    colorId: sanitizeColor(source.colorId) ?? 'coral',
+    faceId: sanitizeFace(source.faceId) ?? 'smile',
+    accessory: sanitizeAccessory(source.accessory) ?? 'none',
+    master: clamp01(source.master, 0.85),
+    music: clamp01(source.music, 0.35),
+    sfx: clamp01(source.sfx, 0.8),
+    camera: clamp01(source.camera, 1),
+    sensitivity: readSensitivity(source.sensitivity),
+    invertY: source.invertY === true,
   }
 }
 
-function defaultSettings(): Settings {
-  return { name: '', colorId: 'coral', faceId: 'smile', accessory: 'none', master: 0.85, music: 0.35, sfx: 0.8, camera: 1 }
+function readSensitivity(value: unknown) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return 1
+  return clampSensitivity(n)
+}
+
+function loadSettings(): Settings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY)
+    if (!raw) return normalizeSettings()
+    return normalizeSettings(JSON.parse(raw) as Partial<Settings>)
+  } catch {
+    return normalizeSettings()
+  }
 }
 
 function clamp01(value: unknown, fallback: number) {

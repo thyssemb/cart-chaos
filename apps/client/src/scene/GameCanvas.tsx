@@ -4,7 +4,6 @@ import {
   PRODUCT_HEIGHT,
   OBSTACLES,
   cartAnchor,
-  collides,
   discObstacle,
   slotWorld,
   stepAvatar,
@@ -19,7 +18,17 @@ import { useGame } from '../store'
 import { Actors, DemoCrew } from './Actors'
 import { shelfFacing } from './foodPack'
 import { Supermarket } from './Supermarket'
-import { control, lerpAngle, readInput, views } from '../views'
+import {
+  REST_DISTANCE,
+  REST_HEIGHT,
+  REST_SIDE,
+  applyMouseLook,
+  cameraFrame,
+  clampPitch,
+  pullCamera,
+  resolveArmScale,
+} from './cameraRig'
+import { control, debug, lerpAngle, readInput, views } from '../views'
 
 class Guard extends Component<{ children: ReactNode; fallback: ReactNode }, { bad: boolean }> {
   state = { bad: false }
@@ -157,7 +166,18 @@ function Simulation() {
       if (key === 'e') control.interactHeld = false
     }
     const move = (event: MouseEvent) => {
-      if (document.pointerLockElement) control.yaw -= event.movementX * 0.0022
+      if (!document.pointerLockElement) return
+      const settings = useGame.getState().settings
+      const next = applyMouseLook(
+        control.yaw,
+        control.pitch,
+        event.movementX,
+        event.movementY,
+        settings.sensitivity,
+        settings.invertY,
+      )
+      control.yaw = next.yaw
+      control.pitch = next.pitch
     }
     const click = (event: MouseEvent) => {
       if (event.button === 0 && document.pointerLockElement) sendAction('shove')
@@ -202,6 +222,7 @@ function Simulation() {
         views.local.grounded = me.grounded
         views.local.ready = true
         control.yaw = me.yaw
+        control.pitch = 0
       }
       const extras = room.carts
         .filter((cart) => !(me.holdingCart && cart.ownerId === meId))
@@ -365,45 +386,54 @@ function Simulation() {
 function CameraRig() {
   const look = useRef(new THREE.Vector3())
   const ready = useRef(false)
-  const distance = useRef(5.5)
+  const scale = useRef(1)
   useFrame((state, delta) => {
     const game = useGame.getState()
     const meId = game.playerId
     const pose = meId ? views.players.get(meId) : undefined
-    const yaw = control.yaw
     const px = pose?.x ?? 11
     const py = pose?.y ?? 0
     const pz = pose?.z ?? -7
     const motion = game.settings.camera
     const sprinting = (pose?.speed ?? 0) > 9.4 && motion > 0.05
-    const blocks = OBSTACLES.filter((obstacle) => !obstacle.id.startsWith('c'))
-    let dist = 5.35 + (sprinting ? 0.45 * motion : 0)
-    let side = 1.05
-    while (dist > 2.2) {
-      const cx = px - Math.sin(yaw) * dist + Math.cos(yaw) * side
-      const cz = pz - Math.cos(yaw) * dist - Math.sin(yaw) * side
-      if (!collides(cx, cz, 0.25, blocks)) break
-      dist -= 0.28
-      side = Math.max(0.15, side - 0.12)
+    const input = {
+      x: px,
+      y: py,
+      z: pz,
+      yaw: control.yaw,
+      pitch: clampPitch(control.pitch),
+      distance: REST_DISTANCE + (sprinting ? 0.45 * motion : 0),
+      height: REST_HEIGHT + (sprinting ? 0.12 * motion : 0),
+      side: REST_SIDE,
     }
+    const resolved = resolveArmScale(input, OBSTACLES)
     const follow = 1 - Math.exp(-9 * delta)
-    distance.current += (dist - distance.current) * follow
-    const used = distance.current
-    const targetX = px - Math.sin(yaw) * used + Math.cos(yaw) * side
-    const targetZ = pz - Math.cos(yaw) * used - Math.sin(yaw) * side
-    const targetY = py + 2.35 + (sprinting ? 0.12 * motion : 0)
+    if (!ready.current) scale.current = resolved
+    else scale.current += (resolved - scale.current) * follow
+    const frame = cameraFrame(input, scale.current)
+    const camera = state.camera as THREE.PerspectiveCamera
     if (!ready.current) {
-      state.camera.position.set(targetX, targetY, targetZ)
-      distance.current = dist
+      camera.position.set(frame.x, frame.y, frame.z)
       ready.current = true
     }
     const k = 1 - Math.exp(-7 * delta)
-    state.camera.position.x += (targetX - state.camera.position.x) * k
-    state.camera.position.y += (targetY - state.camera.position.y) * k
-    state.camera.position.z += (targetZ - state.camera.position.z) * k
-    look.current.set(px + Math.sin(yaw) * 1.35, py + 0.9, pz + Math.cos(yaw) * 1.35)
-    state.camera.lookAt(look.current)
-    const camera = state.camera as THREE.PerspectiveCamera
+    camera.position.x += (frame.x - camera.position.x) * k
+    camera.position.y += (frame.y - camera.position.y) * k
+    camera.position.z += (frame.z - camera.position.z) * k
+    const safe = pullCamera(px, py, pz, camera.position.x, camera.position.y, camera.position.z, OBSTACLES)
+    camera.position.set(safe.x, safe.y, safe.z)
+    look.current.set(frame.lookX, frame.lookY, frame.lookZ)
+    camera.lookAt(look.current)
+    if (import.meta.env.DEV) {
+      debug.camera = {
+        x: safe.x,
+        y: safe.y,
+        z: safe.z,
+        lookX: frame.lookX,
+        lookY: frame.lookY,
+        lookZ: frame.lookZ,
+      }
+    }
     const fov = 50 + (sprinting ? 5.5 * motion : 0)
     if (Math.abs(camera.fov - fov) > 0.05) {
       camera.fov += (fov - camera.fov) * (1 - Math.exp(-4 * delta))

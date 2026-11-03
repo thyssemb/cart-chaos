@@ -12,6 +12,7 @@ export interface Pose {
   hit: boolean
   celebrate: boolean
   connected: boolean
+  emote?: 'wave' | 'dance' | null
 }
 
 export interface CartPose {
@@ -52,8 +53,51 @@ export const views = {
 export const control = {
   keys: new Set<string>(),
   yaw: 0.15,
+  pitch: 0,
   jumpUntil: 0,
   interactHeld: false,
+  uiLock: false,
+}
+
+export const lobbyUi = {
+  kiosk: false,
+  chat: false,
+  copy: 0,
+}
+
+const lobbyWatchers = new Set<() => void>()
+
+export function watchLobbyUi(listener: () => void) {
+  lobbyWatchers.add(listener)
+  return () => {
+    lobbyWatchers.delete(listener)
+  }
+}
+
+function pingLobby() {
+  for (const listener of lobbyWatchers) listener()
+}
+
+export function patchLobbyUi(patch: Partial<Pick<typeof lobbyUi, 'kiosk' | 'chat'>>) {
+  if (patch.kiosk !== undefined) lobbyUi.kiosk = patch.kiosk
+  if (patch.chat !== undefined) lobbyUi.chat = patch.chat
+  control.uiLock = lobbyUi.kiosk || lobbyUi.chat
+  if (control.uiLock) {
+    control.keys.clear()
+    control.interactHeld = false
+    control.jumpUntil = 0
+    document.exitPointerLock()
+  }
+  pingLobby()
+}
+
+export function requestLobbyCopy() {
+  lobbyUi.copy += 1
+  pingLobby()
+}
+
+export const debug = {
+  camera: null as null | { x: number; y: number; z: number; lookX: number; lookY: number; lookZ: number },
 }
 
 export function readInput() {
@@ -72,7 +116,11 @@ export function readInput() {
 }
 
 if (import.meta.env?.DEV && typeof window !== 'undefined') {
-  ;(window as Window & { __cart?: { control: typeof control; views: typeof views } }).__cart = { control, views }
+  ;(window as Window & { __cart?: { control: typeof control; views: typeof views; debug: typeof debug } }).__cart = {
+    control,
+    views,
+    debug,
+  }
 }
 
 export function lerpAngle(a: number, b: number, t: number) {
