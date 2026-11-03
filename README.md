@@ -68,7 +68,7 @@ npm run lint
 
 ## Limites connues
 
-- Les décors, personnages et caddies sont de la géométrie procédurale originale. Les emballages viennent du Food pack de Pasha (CC BY 4.0). Le papier toilette reste un rouleau original. Voir [les licences](docs/ASSET_LICENSES.md).
+- Les décors et les personnages sont de la géométrie procédurale originale. Le caddie est « Cartoon Shopping Cart » d’İlhan Fehimovski (CC BY 4.0). Les emballages viennent du Food pack de Pasha (CC BY 4.0). Le papier toilette reste un rouleau original. Voir [les licences](docs/ASSET_LICENSES.md).
 - Le déplacement suit la caméra. Le corps tourne vers l’avant et les côtés, et recule sans se retourner.
 - La physique des articles dans le caddie est un placement fixe, pas une simulation de chaque objet.
 - Le son est synthétisé. Le navigateur peut le bloquer jusqu’au premier clic.

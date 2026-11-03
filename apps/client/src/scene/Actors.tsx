@@ -1,9 +1,10 @@
 import { CATALOG, colorById, type AccessoryId, type FaceId, type ProductType } from '@cart-chaos/shared'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import type { Group, Mesh, Sprite } from 'three'
 import { useFrame } from '@react-three/fiber'
 import { useGame } from '../store'
 import { FoodProduct, isPackedProduct } from './foodPack'
+import { CartoonCart } from './shoppingCart'
 import { makeBasket, makeBubble, makeFace, makeLabel, makeOveralls } from './textures'
 import { views } from '../views'
 
@@ -360,7 +361,7 @@ export function CharacterModel({
 
 export function CartModel({ id, colorId }: { id: string; colorId?: string }) {
   const group = useRef<Group>(null)
-  const wheels = useRef<Group>(null)
+  const wheels = useRef<Group | null>(null)
   const spin = useRef(0)
   const prevYaw = useRef(0)
   const tilt = useRef(0)
@@ -386,7 +387,15 @@ export function CartModel({ id, colorId }: { id: string; colorId?: string }) {
   })
   return (
     <group ref={group}>
-      <group ref={wheels}>
+      <CartoonCart wheelsRef={wheels} fallback={<ProceduralCart color={palette.hex} basket={basket} wheelsRef={wheels} />} />
+    </group>
+  )
+}
+
+function ProceduralCart({ color, basket, wheelsRef }: { color: string; basket: ReturnType<typeof makeBasket>; wheelsRef: MutableRefObject<Group | null> }) {
+  return (
+    <group>
+      <group ref={(node) => { wheelsRef.current = node }}>
         {[
           [-0.36, 0.1, 0.4],
           [0.36, 0.1, 0.4],
@@ -425,7 +434,7 @@ export function CartModel({ id, colorId }: { id: string; colorId?: string }) {
       </mesh>
       <mesh position={[0, 0.36, 0.58]}>
         <boxGeometry args={[0.72, 0.08, 0.08]} />
-        <meshStandardMaterial color={palette.hex} />
+        <meshStandardMaterial color={color} />
       </mesh>
     </group>
   )
