@@ -11,9 +11,9 @@ export const CART_FOLLOW = 1.08
 export const CONTROLLER = {
   walkSpeed: 7.8,
   sprintSpeed: 12.48,
-  acceleration: 18,
-  deceleration: 24,
-  rotationSpeed: 11,
+  acceleration: 15,
+  deceleration: 20,
+  rotationSpeed: 8.2,
   keyTurnSpeed: 2.8,
   jumpImpulse: 6.35,
   airControl: 0.55,

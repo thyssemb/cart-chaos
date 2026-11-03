@@ -24,6 +24,7 @@ import {
   turnToward,
   zeroInput,
   type Body,
+  type Obstacle,
 } from '../src/index'
 
 describe('scores et listes', () => {
@@ -106,8 +107,7 @@ describe('carte et déplacement', () => {
     const reverse: Body = { x: -3.2, y: 0, z: -6.2, vx: 0, vy: 0, vz: 6, yaw: 0, grounded: true }
     stepAvatar(reverse, { ...zeroInput(0), forward: -1 }, 0.05, OBSTACLES, { holding: false, slow: false })
     expect(reverse.vz).toBeLessThan(2)
-    expect(Math.abs(reverse.yaw)).toBeGreaterThan(0.2)
-    expect(Math.abs(reverse.yaw)).toBeLessThan(1.2)
+    expect(reverse.yaw).toBeCloseTo(0, 5)
     expect(CONTROLLER.sprintSpeed / CONTROLLER.walkSpeed).toBeCloseTo(1.6)
     expect(applyKeyTurn(0, 1, 0.05)).toBeCloseTo(-CONTROLLER.keyTurnSpeed * 0.05)
     expect(applyKeyTurn(0, -1, 0.05)).toBeCloseTo(CONTROLLER.keyTurnSpeed * 0.05)
@@ -143,13 +143,16 @@ describe('carte et déplacement', () => {
       for (const sample of samples) {
         const dir = wish(aim, sample.forward, sample.strafe)
         const body: Body = { x: spot.x, y: 0, z: spot.z, vx: 0, vy: 0, vz: 0, yaw: aim, grounded: true }
-        const before = gap(aim, Math.atan2(dir.x, dir.z))
+        const look = wish(aim, Math.max(sample.forward, 0), sample.strafe)
+        const before = gap(aim, Math.atan2(look.x, look.z))
         stepAvatar(body, { ...zeroInput(aim), ...sample }, 0.05, OBSTACLES, { holding: false, slow: false })
         const moved = body.vx * dir.x + body.vz * dir.z
         expect(moved).toBeGreaterThan(0.2)
         expect(Math.abs(body.vx * dir.z - body.vz * dir.x)).toBeLessThan(0.05)
-        if (Math.abs(before) > 0.2) {
-          const after = gap(body.yaw, Math.atan2(dir.x, dir.z))
+        if (sample.forward < 0 && sample.strafe === 0) {
+          expect(body.yaw).toBeCloseTo(aim, 5)
+        } else if (Math.abs(before) > 0.2) {
+          const after = gap(body.yaw, Math.atan2(look.x, look.z))
           expect(Math.abs(after)).toBeLessThan(Math.abs(before))
           expect(Math.sign(body.yaw - aim)).toBe(Math.sign(before))
         }
@@ -165,16 +168,38 @@ describe('carte et déplacement', () => {
     expect(straight.yaw).toBeGreaterThan(0.2)
     expect(straight.yaw).toBeLessThan(1.2)
 
-    const about: Body = { x: spot.x, y: 0, z: 2, vx: 0, vy: 0, vz: 7, yaw: 0, grounded: true }
-    stepAvatar(about, { ...zeroInput(0), forward: -1 }, 0.05, OBSTACLES, { holding: false, slow: false })
-    expect(about.vz).toBeLessThan(4)
-    const turn = Math.sign(about.yaw)
-    expect(Math.abs(about.yaw)).toBeGreaterThan(0.3)
-    expect(Math.abs(about.yaw)).toBeLessThan(1)
-    for (let i = 0; i < 30; i += 1) stepAvatar(about, { ...zeroInput(0), forward: -1 }, 0.05, OBSTACLES, { holding: false, slow: false })
-    expect(about.vz).toBeLessThan(-4)
-    expect(Math.sign(about.yaw)).toBe(turn)
-    expect(Math.abs(Math.abs(about.yaw) - Math.PI)).toBeLessThan(0.2)
+    const open: Obstacle[] = []
+    const opts = { holding: false, slow: false }
+    const origin = (): Body => ({ x: -3.2, y: 0, z: 2, vx: 0, vy: 0, vz: 0, yaw: 0, grounded: true })
+
+    const fromForward = origin()
+    for (let i = 0; i < 16; i += 1) stepAvatar(fromForward, { ...zeroInput(0), forward: 1, sprint: true }, 0.05, open, opts)
+    const facing = fromForward.yaw
+    const coasting = fromForward.vz
+    expect(coasting).toBeGreaterThan(CONTROLLER.walkSpeed)
+    stepAvatar(fromForward, { ...zeroInput(0), forward: -1, sprint: true }, 0.05, open, opts)
+    expect(fromForward.yaw).toBeCloseTo(facing, 4)
+    expect(fromForward.vz).toBeLessThan(coasting)
+    expect(fromForward.vz).toBeGreaterThan(0)
+    for (let i = 0; i < 24; i += 1) stepAvatar(fromForward, { ...zeroInput(0), forward: -1, sprint: true }, 0.05, open, opts)
+    expect(fromForward.yaw).toBeCloseTo(facing, 4)
+    expect(fromForward.vz).toBeLessThan(-CONTROLLER.walkSpeed)
+
+    const side = origin()
+    for (let i = 0; i < 20; i += 1) stepAvatar(side, { ...zeroInput(0), strafe: -1, sprint: true }, 0.05, open, opts)
+    expect(side.yaw).toBeGreaterThan(1.15)
+    expect(side.vx).toBeGreaterThan(CONTROLLER.walkSpeed)
+    const leftYaw = side.yaw
+    const leftVx = side.vx
+    stepAvatar(side, { ...zeroInput(0), strafe: 1, sprint: true }, 0.05, open, opts)
+    expect(side.yaw).toBeLessThan(leftYaw)
+    expect(leftYaw - side.yaw).toBeLessThan(CONTROLLER.rotationSpeed * 0.05 + 0.02)
+    expect(side.vx).toBeLessThan(leftVx)
+    expect(side.vx).toBeGreaterThan(0)
+    for (let i = 0; i < 28; i += 1) stepAvatar(side, { ...zeroInput(0), strafe: 1, sprint: true }, 0.05, open, opts)
+    expect(side.yaw).toBeLessThan(-1.15)
+    expect(side.vx).toBeLessThan(-CONTROLLER.walkSpeed)
+    expect(Math.hypot(side.vx, side.vz)).toBeGreaterThan(CONTROLLER.sprintSpeed * 0.75)
   })
 
   it('n’éjecte pas hors du magasin', () => {

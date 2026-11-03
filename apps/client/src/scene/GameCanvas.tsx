@@ -259,6 +259,8 @@ function Simulation() {
         pose.z = views.local.z
         pose.yaw = views.local.yaw
         pose.speed = Math.hypot(views.local.vx, views.local.vz)
+        pose.vx = views.local.vx
+        pose.vz = views.local.vz
         pose.grounded = views.local.grounded
       } else {
         pose.x += (player.x - pose.x) * (local ? 1 : smooth)
@@ -266,10 +268,10 @@ function Simulation() {
         pose.z += (player.z - pose.z) * (local ? 1 : smooth)
         pose.yaw = local ? control.yaw : lerpAngle(pose.yaw, player.yaw, smooth)
         pose.speed = Math.hypot(player.vx, player.vz)
+        pose.vx = player.vx
+        pose.vz = player.vz
         pose.grounded = player.grounded
       }
-      pose.vx = player.vx
-      pose.vz = player.vz
       pose.holding = player.holdingCart
       pose.carrying = Boolean(player.carryingId)
       pose.hit = player.hit
@@ -338,7 +340,8 @@ function Simulation() {
     setListener(views.local.x, views.local.z, control.yaw)
     if (playing && views.local.grounded && planar > 0.85) {
       foot.current += planar * step
-      const stride = planar > 5.6 ? 0.52 : 0.74
+      const along = Math.sin(views.local.yaw) * views.local.vx + Math.cos(views.local.yaw) * views.local.vz
+      const stride = along < -0.85 ? 0.4 : planar > 5.6 ? 0.52 : 0.74
       if (foot.current >= stride) {
         foot.current = 0
         footstep(planar)

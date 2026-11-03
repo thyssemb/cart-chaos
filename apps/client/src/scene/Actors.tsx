@@ -92,6 +92,7 @@ export function CharacterModel({ id, colorId, name }: { id: string; colorId?: st
   const land = useRef(0)
   const prevGround = useRef(true)
   const prevYaw = useRef(0)
+  const gait = useRef(0)
   const storeColor = useGame((state) => state.room?.players.find((player) => player.id === id)?.colorId)
   const storeName = useGame((state) => state.room?.players.find((player) => player.id === id)?.name)
   const palette = colorById(colorId ?? storeColor ?? 'coral')
@@ -112,14 +113,25 @@ export function CharacterModel({ id, colorId, name }: { id: string; colorId?: st
     const speed = pose.speed
     const running = speed > 9.4
     const pushing = pose.holding
-    if (grounded && speed > 0.45) phase.current += dt * (pose.celebrate ? 8 : 1.6 + speed * 0.85)
+    const along = pose.vx * Math.sin(pose.yaw) + pose.vz * Math.cos(pose.yaw)
+    const backward = grounded && !pose.celebrate && speed > 0.55 ? Math.max(0, Math.min(1, (-along / speed - 0.2) / 0.55)) : 0
+    gait.current += (backward - gait.current) * (1 - Math.exp(-8 * dt))
+    const retreat = gait.current
+    if (grounded && speed > 0.45) {
+      const cadence = pose.celebrate ? 8 : (1.6 + speed * 0.85) * (1 - retreat) + (2.15 + speed * 0.45) * retreat
+      phase.current += dt * cadence
+    }
     const blend = 1 - Math.exp(-11 * dt)
-    const targetSwing = grounded && speed > 0.3 && !pose.celebrate ? Math.sin(phase.current) * (running ? 0.9 : 0.55) : 0
+    const targetSwing = grounded && speed > 0.3 && !pose.celebrate ? Math.sin(phase.current) * (running ? 0.9 : 0.55) * (1 - retreat * 0.35) : 0
     swing.current += (targetSwing - swing.current) * blend
     let armTarget = -swing.current
     if (!grounded) armTarget = pose.y > 0.2 ? -0.85 : 0.35
     if (pushing) armTarget = -1.02
     if (pose.carrying && !pushing) armTarget = -1.15
+    if (grounded && !pushing && !pose.carrying && !pose.celebrate && retreat > 0.02) {
+      const backArm = -0.42 + Math.sin(phase.current * 1.15 + 0.7) * 0.1
+      armTarget = armTarget * (1 - retreat) + backArm * retreat
+    }
     arms.current += (armTarget - arms.current) * blend
     let yawDelta = pose.yaw - prevYaw.current
     while (yawDelta > Math.PI) yawDelta -= Math.PI * 2
@@ -127,11 +139,12 @@ export function CharacterModel({ id, colorId, name }: { id: string; colorId?: st
     prevYaw.current = pose.yaw
     const leanTarget = Math.max(-0.22, Math.min(0.22, (-yawDelta / Math.max(dt, 0.016)) * 0.045))
     lean.current += (leanTarget - lean.current) * blend
-    const bob = grounded && speed > 0.45 ? Math.abs(Math.sin(phase.current)) * (running ? 0.075 : 0.04) : pose.celebrate ? Math.abs(Math.sin(phase.current)) * 0.16 : 0
+    const bob = grounded && speed > 0.45 ? Math.abs(Math.sin(phase.current)) * (running ? 0.075 : 0.04) * (1 - retreat * 0.45) : pose.celebrate ? Math.abs(Math.sin(phase.current)) * 0.16 : 0
     const squashTarget = pose.hit ? 0.76 : land.current > 0 ? 0.84 : 1
     squash.current += (squashTarget - squash.current) * blend
     group.current.position.set(pose.x, pose.y + bob, pose.z)
     group.current.rotation.y = pose.yaw
+    group.current.rotation.x = -retreat * 0.16
     group.current.rotation.z = pushing ? lean.current * 0.45 : lean.current
     group.current.scale.set(pose.hit ? 1.12 : 1, squash.current, pose.hit ? 1.12 : 1)
     if (legL.current && legR.current) {
@@ -143,8 +156,9 @@ export function CharacterModel({ id, colorId, name }: { id: string; colorId?: st
         legL.current.rotation.x = -0.45
         legR.current.rotation.x = -0.15
       } else {
-        legL.current.rotation.x = swing.current
-        legR.current.rotation.x = -swing.current
+        const stepBack = Math.sin(phase.current * 1.2)
+        legL.current.rotation.x = swing.current * (1 - retreat) + (-0.36 + stepBack * 0.16) * retreat
+        legR.current.rotation.x = -swing.current * (1 - retreat) + (-0.36 - stepBack * 0.16) * retreat
       }
     }
     if (armL.current) {

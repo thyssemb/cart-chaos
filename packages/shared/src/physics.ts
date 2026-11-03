@@ -126,19 +126,34 @@ export function stepAvatar(
     (opts.holding ? CART_SPEED_MUL : 1) *
     (opts.slow ? SLOW_MUL : 1) *
     len
-  const face = moving ? Math.atan2(wx, wz) : body.yaw
+  // Facing follows forward and strafe only. Backpedal keeps the current yaw:
+  // S must translate without a 180° turn.
+  const faceForward = Math.max(0, f)
+  let face = body.yaw
+  if (faceForward > 0.02 || Math.abs(strafe) > 0.02) {
+    const fx = Math.sin(aim) * faceForward - Math.cos(aim) * strafe
+    const fz = Math.cos(aim) * faceForward + Math.sin(aim) * strafe
+    if (fx * fx + fz * fz > 1e-4) face = Math.atan2(fx, fz)
+  }
+  const delta = wrapAngle(face - body.yaw)
   const maxTurn = CONTROLLER.rotationSpeed * step
-  let turned = turnToward(body.yaw, face, maxTurn)
+  const soften = 1 - Math.exp(-CONTROLLER.rotationSpeed * 1.35 * step)
+  let turned = body.yaw + clamp(delta * soften, -maxTurn, maxTurn)
   if (opts.holding && !canOccupy(body.x, body.z, turned, true, blocks)) {
-    const half = turnToward(body.yaw, face, maxTurn * 0.45)
+    const half = body.yaw + clamp(delta * soften * 0.45, -maxTurn * 0.45, maxTurn * 0.45)
     turned = canOccupy(body.x, body.z, half, true, blocks) ? half : body.yaw
   }
   body.yaw = turned
 
-  const accel = (moving ? CONTROLLER.acceleration : CONTROLLER.deceleration) * (body.grounded ? 1 : CONTROLLER.airControl)
-  const k = 1 - Math.exp(-accel * step)
-  body.vx += (wx * speed - body.vx) * k
-  body.vz += (wz * speed - body.vz) * k
+  const targetVx = wx * speed
+  const targetVz = wz * speed
+  const opposing = moving && body.vx * targetVx + body.vz * targetVz < 0
+  const rate =
+    (!moving ? CONTROLLER.deceleration : opposing ? CONTROLLER.acceleration * 0.85 : CONTROLLER.acceleration) *
+    (body.grounded ? 1 : CONTROLLER.airControl)
+  const k = 1 - Math.exp(-rate * step)
+  body.vx += (targetVx - body.vx) * k
+  body.vz += (targetVz - body.vz) * k
 
   body.coyote = body.grounded ? CONTROLLER.coyote : Math.max(0, (body.coyote ?? 0) - step)
   body.jumpLock = Math.max(0, (body.jumpLock ?? 0) - step)
