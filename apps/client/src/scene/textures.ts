@@ -112,6 +112,104 @@ function eye(ctx: CanvasRenderingContext2D, x: number, y: number, open: boolean,
   ctx.fill()
 }
 
+export function makeBubble(text: string) {
+  return canvasTexture(1024, 200, (ctx) => {
+    ctx.clearRect(0, 0, 1024, 200)
+    ctx.fillStyle = '#fff6df'
+    round(ctx, 16, 28, 992, 144, 48)
+    ctx.fill()
+    ctx.fillStyle = '#14323c'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    const line = text.slice(0, 80)
+    let size = 56
+    ctx.font = `700 ${size}px Fredoka, Trebuchet MS, sans-serif`
+    while (size > 26 && ctx.measureText(line).width > 920) {
+      size -= 2
+      ctx.font = `700 ${size}px Fredoka, Trebuchet MS, sans-serif`
+    }
+    ctx.fillText(line, 512, 102)
+  })
+}
+
+export function makeRoster(lines: { name: string; ready: boolean; host: boolean }[]) {
+  return canvasTexture(512, 640, (ctx) => {
+    ctx.fillStyle = '#f4fbff'
+    ctx.fillRect(0, 0, 512, 640)
+    ctx.fillStyle = '#ff5d6c'
+    ctx.fillRect(0, 0, 512, 84)
+    ctx.fillStyle = '#fffaf2'
+    ctx.font = '700 42px Fredoka, Trebuchet MS, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('ÉQUIPE', 256, 44)
+    if (lines.length === 0) {
+      ctx.fillStyle = '#14323c'
+      ctx.font = '700 32px Fredoka, Trebuchet MS, sans-serif'
+      ctx.fillText('Personne pour l’instant', 256, 320)
+      return
+    }
+    lines.slice(0, 6).forEach((line, index) => {
+      const y = 150 + index * 78
+      ctx.fillStyle = index % 2 === 0 ? '#e7f4ff' : '#fff6ea'
+      ctx.fillRect(24, y - 36, 464, 64)
+      ctx.textAlign = 'left'
+      ctx.fillStyle = '#14323c'
+      ctx.font = '700 30px Fredoka, Trebuchet MS, sans-serif'
+      const name = `${line.host ? '★ ' : ''}${line.name}`.slice(0, 18)
+      ctx.fillText(name, 40, y)
+      ctx.textAlign = 'right'
+      ctx.fillStyle = line.ready ? '#148a52' : '#c46a12'
+      ctx.fillText(line.ready ? 'Prêt' : 'Pas prêt', 470, y)
+    })
+  })
+}
+
+export function makeCodePlate(code: string) {
+  return canvasTexture(512, 320, (ctx) => {
+    ctx.fillStyle = '#14323c'
+    ctx.fillRect(0, 0, 512, 320)
+    ctx.fillStyle = '#ffd56a'
+    ctx.font = '700 28px Fredoka, Trebuchet MS, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('CODE DU SALON', 256, 64)
+    ctx.fillStyle = '#fff6df'
+    ctx.font = '700 92px Fredoka, Trebuchet MS, sans-serif'
+    ctx.fillText(code.slice(0, 4), 256, 168)
+    ctx.fillStyle = '#9ad7ff'
+    ctx.font = '700 26px Fredoka, Trebuchet MS, sans-serif'
+    ctx.fillText('E pour copier', 256, 258)
+  })
+}
+
+export function makePoster(title: string, line: string, background: string, ink: string) {
+  return canvasTexture(512, 680, (ctx) => {
+    ctx.fillStyle = background
+    ctx.fillRect(0, 0, 512, 680)
+    ctx.fillStyle = ink
+    ctx.fillRect(28, 28, 456, 14)
+    ctx.fillRect(28, 638, 456, 14)
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = '700 58px Fredoka, Trebuchet MS, sans-serif'
+    ctx.fillText(title, 256, 180)
+    ctx.font = '700 32px Fredoka, Trebuchet MS, sans-serif'
+    const words = line.split(' ')
+    let row = ''
+    let y = 280
+    for (const word of words) {
+      const next = row ? `${row} ${word}` : word
+      if (ctx.measureText(next).width > 420) {
+        ctx.fillText(row, 256, y)
+        row = word
+        y += 46
+      } else row = next
+    }
+    if (row) ctx.fillText(row, 256, y)
+  })
+}
+
 export function makeLabel(text: string, color: string) {
   const texture = canvasTexture(512, 128, (ctx) => {
     ctx.clearRect(0, 0, 512, 128)

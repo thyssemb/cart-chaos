@@ -10,6 +10,7 @@ import {
   sanitizeChat,
   sanitizeCode,
   sanitizeColor,
+  sanitizeEmote,
   sanitizeFace,
   sanitizeInput,
   type AccessoryId,
@@ -191,6 +192,25 @@ export function createGameServer(opts?: { autoTick?: boolean }) {
 
     socket.on('rematch', (_payload: unknown, ack?: unknown) => {
       const result = withPlayer(socket.id, (room, playerId) => room.rematch(playerId))
+      ackOf(ack, result ?? { ok: false, error: 'Pas dans un salon' })
+      const session = sessions.get(socket.id)
+      const room = session ? rooms.get(session.code) : null
+      if (room) broadcast(room)
+    })
+
+    socket.on('back', (_payload: unknown, ack?: unknown) => {
+      const result = withPlayer(socket.id, (room, playerId) => room.backToLobby(playerId))
+      ackOf(ack, result ?? { ok: false, error: 'Pas dans un salon' })
+      const session = sessions.get(socket.id)
+      const room = session ? rooms.get(session.code) : null
+      if (room) broadcast(room)
+    })
+
+    socket.on('emote', (payload: unknown, ack?: unknown) => {
+      if (!allow(socket.id, 'action', 8)) return ackOf(ack, { ok: false, error: 'Doucement' })
+      const emote = sanitizeEmote(payload)
+      if (!emote) return ackOf(ack, { ok: false, error: 'Emote inconnue' })
+      const result = withPlayer(socket.id, (room, playerId) => room.setEmote(playerId, emote))
       ackOf(ack, result ?? { ok: false, error: 'Pas dans un salon' })
       const session = sessions.get(socket.id)
       const room = session ? rooms.get(session.code) : null

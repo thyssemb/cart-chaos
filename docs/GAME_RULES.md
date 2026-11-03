@@ -40,4 +40,4 @@ Quand il reste 90 secondes, un seul PQ doré apparaît dans la zone promo. Il se
 
 ## Phases
 
-LOBBY → compte à rebours 3 s → manche 3 min → résultats → revanche. Rejouer remet les scores, les listes, les produits et les caddies à zéro. Une déconnexion laisse le salon en place ; la reconnexion du même onglet reprend le joueur pendant 45 secondes.
+Le salon est une salle de pause en 3D, séparée du magasin. On s’y déplace, on se met prêt au tableau, on change de look au miroir, et l’hôte ouvre la porte quand tout le monde est prêt. Le compte à rebours de 3 s reste dans cette salle, puis le groupe entre dans le supermarché. Manche 3 min → résultats. Rejouer relance dans le magasin. Retour au salon ramène tout le groupe dans la salle de pause. Rejouer et le retour remettent les scores, les listes, les produits et les caddies à zéro. Une déconnexion laisse le salon en place ; la reconnexion du même onglet reprend le joueur pendant 45 secondes.

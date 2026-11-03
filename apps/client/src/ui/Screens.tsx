@@ -1,8 +1,8 @@
-import { ACCESSORIES, COLORS, FACES, MAX_PLAYERS, MIN_PLAYERS, playerName } from '@cart-chaos/shared'
+import { ACCESSORIES, COLORS, FACES, playerName } from '@cart-chaos/shared'
 import { SENSITIVITY_MAX, SENSITIVITY_MIN } from '../scene/cameraRig'
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { playUi, syncAudio } from '../audio'
-import { createRoom, joinRoom, sendChat, sendLeave, sendLook, sendReady, sendStart } from '../net'
+import { createRoom, joinRoom } from '../net'
 import { AvatarPreview } from '../scene/AvatarPreview'
 import { useGame } from '../store'
 
@@ -195,7 +195,12 @@ export function Settings() {
   const settings = useGame((state) => state.settings)
   const setSettings = useGame((state) => state.setSettings)
   const setScreen = useGame((state) => state.setScreen)
-  const inLobby = useGame((state) => state.screen === 'settings' && state.room?.phase === 'lobby')
+  const back = useGame((state) => {
+    const phase = state.room?.phase
+    if (phase === 'lobby' || phase === 'countdown') return 'lobby' as const
+    if (state.room) return 'game' as const
+    return 'menu' as const
+  })
   return (
     <div className="absolute inset-0 grid place-items-center overflow-auto p-6">
       <div className="max-h-[92vh] w-[min(440px,94vw)] overflow-y-auto rounded-[2rem] bg-ink/80 p-7">
@@ -287,153 +292,9 @@ export function Settings() {
           />
           Inverser l'axe vertical
         </label>
-        <button className="arcade-btn mt-6 bg-gold px-5 py-3 text-ink" onClick={() => setScreen(inLobby ? 'lobby' : 'menu')}>
+        <button className="arcade-btn mt-6 bg-gold px-5 py-3 text-ink" onClick={() => setScreen(back)}>
           Retour
         </button>
-      </div>
-    </div>
-  )
-}
-
-export function Lobby() {
-  const room = useGame((state) => state.room)
-  const playerId = useGame((state) => state.playerId)
-  const error = useGame((state) => state.error)
-  const flash = useGame((state) => state.flash)
-  const setSettings = useGame((state) => state.setSettings)
-  const setScreen = useGame((state) => state.setScreen)
-  const [copied, setCopied] = useState(false)
-  const [draft, setDraft] = useState('')
-  const log = useRef<HTMLDivElement>(null)
-  const chatCount = room?.chats.length ?? 0
-  useEffect(() => {
-    const node = log.current
-    if (node) node.scrollTop = node.scrollHeight
-  }, [chatCount])
-  if (!room) return null
-  const me = room.players.find((player) => player.id === playerId)
-  const hostOnline = room.players.some((player) => player.host && player.connected)
-  const online = room.players.filter((player) => player.connected)
-  const allReady = online.every((player) => player.ready)
-  const canStart = Boolean(me && (!hostOnline || me.host) && online.length >= MIN_PLAYERS && allReady)
-  const wear = (patch: Parameters<typeof setSettings>[0]) => {
-    const previous = useGame.getState().settings
-    setSettings(patch)
-    void sendLook().then((ok) => {
-      if (!ok) setSettings({ colorId: previous.colorId, faceId: previous.faceId, accessory: previous.accessory })
-    })
-  }
-
-  return (
-    <div className="absolute inset-0 grid place-items-center overflow-auto p-3 sm:p-4">
-      <div className="panel-in grid w-[min(920px,96vw)] gap-4 rounded-[2rem] bg-ink/80 p-4 shadow-2xl md:grid-cols-[1.2fr_0.8fr] md:p-6">
-        <div>
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="text-sm tracking-[0.25em] text-gold">SALON PRIVÉ</div>
-              <h2 className="text-4xl font-bold tracking-widest sm:text-5xl">{room.code}</h2>
-            </div>
-            <button
-              className="arcade-btn bg-gold px-4 py-2 text-ink"
-              onMouseEnter={() => playUi('hover')}
-              onClick={() => {
-                playUi('click')
-                void navigator.clipboard?.writeText(room.code).then(() => setCopied(true)).catch(() => setCopied(false))
-              }}
-            >
-              {copied ? 'Copié' : 'Copier le code'}
-            </button>
-          </div>
-          <p className="mt-1 text-sm text-cream/70">
-            {online.length}/{MAX_PLAYERS} en ligne · tout le monde doit être prêt
-          </p>
-          <ul className="mt-4 max-h-64 space-y-2 overflow-auto">
-            {room.players.map((player) => {
-              const color = COLORS.find((item) => item.id === player.colorId)
-              const face = FACES.find((item) => item.id === player.faceId)
-              const accessory = ACCESSORIES.find((item) => item.id === player.accessory)
-              return (
-                <li key={player.id} className="flex items-center justify-between gap-2 rounded-2xl bg-white/10 px-3 py-2">
-                  <span className="flex min-w-0 items-center gap-3">
-                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-lg font-bold text-ink" style={{ background: color?.hex }}>
-                      {player.name.slice(0, 1).toUpperCase()}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate font-bold">
-                        {player.name}
-                        {player.host ? ' · hôte' : ''}
-                        {!player.connected ? ' · parti' : ''}
-                      </span>
-                      <span className="block text-xs text-cream/70">
-                        {face?.label} · {accessory?.label}
-                      </span>
-                    </span>
-                  </span>
-                  <span className={player.ready ? 'text-mint' : 'text-cream/60'}>{player.connected ? (player.ready ? 'Prêt' : 'Pas prêt') : 'Absent'}</span>
-                </li>
-              )
-            })}
-          </ul>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {COLORS.map((color) => (
-              <button
-                key={color.id}
-                className="h-8 w-8 rounded-full"
-                aria-label={color.label}
-                style={{ background: color.hex, outline: me?.colorId === color.id ? '3px solid white' : 'none' }}
-                onClick={() => wear({ colorId: color.id })}
-              />
-            ))}
-          </div>
-          {(error || flash) && <p className="mt-3 text-sm text-gold">{error || flash}</p>}
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button className="arcade-btn bg-white/10 px-4 py-3" onClick={() => { playUi('click'); void sendReady() }}>
-              {me?.ready ? 'Pas prêt' : 'Prêt'}
-            </button>
-            <button className="arcade-btn bg-coral px-4 py-3 text-white disabled:opacity-50" disabled={!canStart} onClick={() => { playUi('click'); void sendStart() }}>
-              Lancer la manche
-            </button>
-            <button className="arcade-btn bg-white/10 px-4 py-3" onClick={() => { playUi('click'); setScreen('settings') }}>
-              Paramètres
-            </button>
-            <button className="arcade-btn bg-white/10 px-4 py-3" onClick={() => { playUi('click'); void sendLeave() }}>
-              Quitter
-            </button>
-          </div>
-        </div>
-        <form
-          className="flex min-h-64 flex-col rounded-[1.5rem] bg-black/20 p-3"
-          onSubmit={(event) => {
-            event.preventDefault()
-            const text = draft.trim()
-            if (!text) return
-            void sendChat(text).then((ok) => {
-              if (ok) setDraft('')
-            })
-          }}
-        >
-          <div className="text-sm font-bold tracking-wide text-gold">CHAT</div>
-          <div ref={log} className="mt-2 flex-1 space-y-1 overflow-auto text-sm">
-            {room.chats.length === 0 && <p className="text-cream/50">Dis bonjour avant le départ.</p>}
-            {room.chats.map((chat) => (
-              <p key={chat.id}>
-                <span className="font-bold text-gold">{chat.name}</span> {chat.text}
-              </p>
-            ))}
-          </div>
-          <div className="mt-2 flex gap-2">
-            <input
-              className="w-full rounded-2xl bg-white/10 px-3 py-2 outline-none"
-              maxLength={80}
-              placeholder="Message"
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-            />
-            <button className="arcade-btn bg-gold px-3 py-2 text-ink" type="submit">
-              Envoyer
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   )

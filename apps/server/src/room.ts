@@ -10,6 +10,9 @@ import {
   HOMES,
   INTERACT_RANGE,
   LEGENDARY_AT_MS,
+  LOBBY,
+  LOBBY_OBSTACLES,
+  LOBBY_SPAWNS,
   MATCH_MS,
   MAX_PLAYERS,
   MIN_PLAYERS,
@@ -39,6 +42,7 @@ import {
   type AccessoryId,
   type ActionType,
   type ColorId,
+  type EmoteId,
   type FaceId,
   type MoveInput,
   type Phase,
@@ -84,6 +88,9 @@ interface Player {
   input: MoveInput
   lastInputAt: number
   chatAt: number[]
+  emote: EmoteId | null
+  emoteUntil: number
+  emoteAt: number
 }
 
 interface Product {
@@ -137,6 +144,7 @@ export class Room {
   chats: { id: number; playerId: string; name: string; text: string; at: number }[] = []
   sfx: { id: number; type: SfxType; x: number; z: number }[] = []
   private legendarySpawned = false
+  private holdLobby = false
   private noticeSeq = 1
   private chatSeq = 1
   private sfxSeq = 1
@@ -175,12 +183,13 @@ export class Room {
       vx: 0,
       vz: 0,
     })
-    if (this.phase === 'playing' || this.phase === 'countdown') {
+    const inStore = this.phase === 'playing' || (this.phase === 'countdown' && !this.holdLobby)
+    if (inStore) {
       player.list = rollList(this.rng)
       player.holdingCart = true
       this.placeCart(player)
     }
-    this.notify(`${player.name} entre dans le magasin`, 'info', null, 2200)
+    this.notify(`${player.name} ${inStore ? 'entre dans le magasin' : 'arrive en salle de pause'}`, 'info', null, 2200)
     this.pushSfx('join', player.x, player.z)
     return { ok: true, player, token }
   }
@@ -268,9 +277,26 @@ export class Room {
     return { ok: true }
   }
 
+  setEmote(playerId: string, emote: EmoteId) {
+    const player = this.players.get(playerId)
+    if (!player?.connected) return { ok: false, error: 'Joueur absent' }
+    if (this.phase !== 'lobby') return { ok: false, error: 'Pas maintenant' }
+    const now = Date.now()
+    if (now - player.emoteAt < 450) return { ok: false, error: 'Doucement' }
+    player.emote = emote
+    player.emoteAt = now
+    player.emoteUntil = now + (emote === 'dance' ? 3400 : 1500)
+    return { ok: true }
+  }
+
   setInput(playerId: string, input: MoveInput) {
     const player = this.players.get(playerId)
     if (!player || !player.connected) return
+    if (this.phase === 'lobby') {
+      player.input = input
+      player.lastInputAt = Date.now()
+      return
+    }
     if (this.phase !== 'playing') {
       player.yaw = input.yaw
       player.input = zeroInput(input.yaw)
@@ -296,12 +322,58 @@ export class Room {
     if (this.phase === 'lobby' && [...this.players.values()].some((player) => player.connected && !player.ready)) {
       return { ok: false, error: 'Tout le monde doit être prêt' }
     }
-    this.beginRound()
+    if (this.phase === 'lobby') this.armFromLobby()
+    else this.beginRound()
     return { ok: true }
   }
 
   rematch(playerId: string) {
     return this.start(playerId)
+  }
+
+  backToLobby(playerId: string) {
+    if (this.phase !== 'results') return { ok: false, error: 'Pas maintenant' }
+    if (!this.canControl(playerId)) return { ok: false, error: 'Seul l’hôte peut ramener le salon' }
+    this.phase = 'lobby'
+    this.timeLeftMs = 0
+    this.holdLobby = false
+    this.notices = []
+    let index = 0
+    for (const player of this.players.values()) {
+      const spawn = LOBBY_SPAWNS[index % LOBBY_SPAWNS.length]!
+      index += 1
+      player.x = spawn.x
+      player.y = 0
+      player.z = spawn.z
+      player.vx = 0
+      player.vy = 0
+      player.vz = 0
+      player.yaw = spawn.yaw
+      player.grounded = true
+      player.carryingId = null
+      player.holdingCart = false
+      player.ready = false
+      player.score = 0
+      player.list = []
+      player.validated = {}
+      player.listBonus = false
+      player.steal = null
+      player.emote = null
+      player.emoteUntil = 0
+      player.input = zeroInput(spawn.yaw)
+      const cart = this.carts.get(player.id)
+      if (cart) {
+        cart.held = false
+        cart.itemIds = []
+        cart.vx = 0
+        cart.vz = 0
+        cart.x = spawn.x
+        cart.z = spawn.z + 0.8
+        cart.yaw = spawn.yaw
+      }
+    }
+    this.notify('Retour en salle de pause', 'info', null, 1800)
+    return { ok: true }
   }
 
   tick(dtMs: number) {
@@ -352,6 +424,7 @@ export class Room {
         hit: player.hitMs > 0,
         slow: player.slowMs > 0,
         stealing: player.steal && !player.steal.blocked ? Math.min(1, player.steal.elapsed / STEAL_MS) : 0,
+        emote: player.emoteUntil > serverNow ? player.emote : null,
       })),
       products: [...this.products.values()].map((product) => ({
         id: product.id,
@@ -391,9 +464,14 @@ export class Room {
       }
     }
 
+    if (this.phase === 'lobby') {
+      this.simulateLobby(dtMs)
+      return
+    }
     if (this.phase === 'countdown') {
       this.timeLeftMs -= dtMs
       if (this.timeLeftMs <= 0) {
+        if (this.holdLobby) this.enterStore()
         this.phase = 'playing'
         this.timeLeftMs = MATCH_MS
       }
@@ -401,6 +479,47 @@ export class Room {
     }
     if (this.phase !== 'playing') return
     this.simulate(dtMs)
+  }
+
+  private simulateLobby(dtMs: number) {
+    const dt = dtMs / 1000
+    const now = Date.now()
+    const live = [...this.players.values()].filter((player) => player.connected)
+    for (const player of live) {
+      if (now - player.lastInputAt > 280) {
+        player.input = { ...player.input, forward: 0, strafe: 0, sprint: false, jump: false, interactHeld: false }
+      }
+      if (player.emoteUntil <= now) player.emote = null
+      stepAvatar(player, player.input, dt, LOBBY_OBSTACLES, { holding: false, slow: false, bounds: LOBBY })
+    }
+    for (let i = 0; i < live.length; i += 1) {
+      for (let j = i + 1; j < live.length; j += 1) {
+        const a = live[i]!
+        const b = live[j]!
+        let dx = b.x - a.x
+        let dz = b.z - a.z
+        let dist = Math.hypot(dx, dz)
+        const min = PLAYER_RADIUS * 2
+        if (dist < 1e-4) {
+          dx = 1
+          dz = 0
+          dist = 1
+        }
+        if (dist >= min) continue
+        const push = (min - dist) / 2
+        const nx = dx / dist
+        const nz = dz / dist
+        a.x -= nx * push
+        a.z -= nz * push
+        b.x += nx * push
+        b.z += nz * push
+      }
+    }
+    for (const player of live) {
+      const safe = depenetrate(player.x, player.z, PLAYER_RADIUS, LOBBY_OBSTACLES, LOBBY)
+      player.x = safe.x
+      player.z = safe.z
+    }
   }
 
   private simulate(dtMs: number) {
@@ -856,6 +975,34 @@ export class Room {
     this.round += 1
     this.phase = 'countdown'
     this.timeLeftMs = COUNTDOWN_MS
+    this.holdLobby = false
+    this.seatForMatch()
+    this.notify(`Manche ${this.round}`, 'info', null, 1800)
+  }
+
+  private armFromLobby() {
+    this.round += 1
+    this.phase = 'countdown'
+    this.timeLeftMs = COUNTDOWN_MS
+    this.holdLobby = true
+    this.legendarySpawned = false
+    for (const player of this.players.values()) {
+      player.vx = 0
+      player.vy = 0
+      player.vz = 0
+      player.steal = null
+      player.holdingCart = false
+      player.input = zeroInput(player.yaw)
+    }
+    this.notify(`Manche ${this.round}`, 'info', null, 1800)
+  }
+
+  private enterStore() {
+    this.holdLobby = false
+    this.seatForMatch()
+  }
+
+  private seatForMatch() {
     this.legendarySpawned = false
     this.rng = mulberry32(hashCode(this.code) + this.round * 9973)
     this.resetProducts()
@@ -885,11 +1032,12 @@ export class Room {
       player.shoveCd = 0
       player.steal = null
       player.ready = false
+      player.emote = null
+      player.emoteUntil = 0
       player.list = rollList(this.rng)
       player.input = zeroInput(spawn.yaw)
       this.placeCart(player)
     }
-    this.notify(`Manche ${this.round}`, 'info', null, 1800)
   }
 
   private resetProducts() {
@@ -934,7 +1082,9 @@ export class Room {
     host: boolean,
     look?: { colorId?: ColorId | null; faceId?: FaceId; accessory?: AccessoryId },
   ): Player {
-    const spawn = SPAWNS[this.players.size % SPAWNS.length]!
+    const inStore = this.phase === 'playing' || (this.phase === 'countdown' && !this.holdLobby)
+    const spots = inStore ? SPAWNS : LOBBY_SPAWNS
+    const spawn = spots[this.players.size % spots.length]!
     return {
       id,
       token,
@@ -971,6 +1121,9 @@ export class Room {
       input: zeroInput(spawn.yaw),
       lastInputAt: 0,
       chatAt: [],
+      emote: null,
+      emoteUntil: 0,
+      emoteAt: 0,
     }
   }
 

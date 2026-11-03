@@ -8,6 +8,13 @@ export interface Obstacle {
   maxZ: number
 }
 
+export interface Bounds {
+  minX: number
+  maxX: number
+  minZ: number
+  maxZ: number
+}
+
 export interface ShelfDef {
   id: string
   x: number

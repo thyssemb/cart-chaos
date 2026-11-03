@@ -9,7 +9,7 @@ import {
 } from '@cart-chaos/shared'
 import { useEffect, useRef, useState } from 'react'
 import { playEnd, playUi, playVictory } from '../audio'
-import { sendLeave, sendRematch } from '../net'
+import { sendBack, sendLeave, sendRematch } from '../net'
 import { useGame } from '../store'
 
 export function Hud() {
@@ -250,13 +250,18 @@ function Results() {
             </li>
           ))}
         </ul>
-        <div className="mt-5 flex justify-center gap-3">
+        <div className="mt-5 flex flex-wrap justify-center gap-3">
           {canRestart ? (
-            <button className="arcade-btn bg-coral px-5 py-3 text-white" onClick={() => void sendRematch()}>
-              Rejouer
-            </button>
+            <>
+              <button className="arcade-btn bg-coral px-5 py-3 text-white" onClick={() => void sendRematch()}>
+                Rejouer
+              </button>
+              <button className="arcade-btn bg-gold px-5 py-3 text-ink" onClick={() => void sendBack()}>
+                Retour au salon
+              </button>
+            </>
           ) : (
-            <div className="rounded-2xl bg-black/20 px-4 py-3 text-sm">L’hôte peut relancer la manche.</div>
+            <div className="rounded-2xl bg-black/20 px-4 py-3 text-sm">L’hôte peut relancer ou ramener le groupe au salon.</div>
           )}
           <button className="arcade-btn bg-white/10 px-5 py-3" onClick={() => void sendLeave()}>
             Quitter

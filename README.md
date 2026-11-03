@@ -19,7 +19,7 @@ npm install
 npm run dev
 ```
 
-Ouvre ensuite **http://localhost:5173**. Choisis un pseudo (3 à 16 caractères), un visage et un accessoire, puis crée ou rejoins un salon. Tout le monde doit être prêt avant le départ.
+Ouvre ensuite **http://localhost:5173**. Choisis un pseudo (3 à 16 caractères), un visage et un accessoire, puis crée ou rejoins un salon. Le salon est une salle de pause : chaque joueur y marche avec son avatar. Tout le monde doit être prêt avant que l’hôte ouvre le magasin.
 
 - Client Vite : http://localhost:5173
 - Serveur Socket.IO : http://localhost:3001
@@ -52,6 +52,7 @@ npm run lint
 - Shift sprinte (environ 60 % plus vite), Espace saute
 - Souris : caméra (clic pour capturer le pointeur). Le personnage s’oriente vers l’avant et les côtés. S et flèche bas marchent à reculons sans demi-tour.
 - Réglages : volume général, musique, effets, amplitude de la caméra.
+- Dans la salle de pause : E près du tableau, du miroir, du code ou de la porte. 1 salue, 2 danse, Entrée ouvre le chat
 - E ramasser / déposer / voler (maintenir) / caisse
 - F saisir ou lâcher le caddie
 - Clic gauche bousculer

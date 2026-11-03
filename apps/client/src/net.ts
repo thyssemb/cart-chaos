@@ -117,6 +117,18 @@ export async function sendLeave() {
   useGame.getState().clearSession()
 }
 
+export async function sendBack() {
+  const response = await ask('back')
+  if (!response.ok) useGame.getState().setError(response.error ?? 'Retour refusé')
+}
+
+export async function sendEmote(emote: 'wave' | 'dance') {
+  const response = await ask('emote', { emote })
+  if (!response.ok && response.error && response.error !== 'Doucement' && response.error !== 'Pas maintenant') {
+    useGame.getState().setFlash(response.error)
+  }
+}
+
 export function sendAction(type: ActionType) {
   const state = useGame.getState()
   if (!state.room || state.room.phase !== 'playing' || state.paused) return

@@ -6,6 +6,8 @@ export type ProductState = 'shelf' | 'ground' | 'carried' | 'cart' | 'validated'
 
 export type ActionType = 'interact' | 'grab' | 'shove'
 
+export type EmoteId = 'wave' | 'dance'
+
 export type SfxType = 'pickup' | 'drop' | 'shove' | 'steal' | 'checkout' | 'legendary' | 'bump' | 'complete' | 'join'
 
 export interface MoveInput {
@@ -47,6 +49,7 @@ export interface PublicPlayer {
   hit: boolean
   slow: boolean
   stealing: number
+  emote: EmoteId | null
 }
 
 export interface PublicProduct {

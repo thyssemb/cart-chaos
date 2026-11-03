@@ -201,6 +201,12 @@ export function sanitizeAction(raw: unknown): import('./types').ActionType | nul
   return null
 }
 
+export function sanitizeEmote(raw: unknown): import('./types').EmoteId | null {
+  const value = raw && typeof raw === 'object' ? (raw as { emote?: unknown }).emote : raw
+  if (value === 'wave' || value === 'dance') return value
+  return null
+}
+
 export function sanitizeColor(raw: unknown): import('./constants').ColorId | null {
   if (typeof raw !== 'string') return null
   const ids = ['coral', 'turquoise', 'mint', 'rose', 'sun', 'blue'] as const

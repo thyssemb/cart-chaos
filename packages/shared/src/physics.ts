@@ -1,5 +1,5 @@
 import { CART_FOLLOW, CART_RADIUS, CART_SPEED_MUL, CONTROLLER, GRAVITY, PLAYER_RADIUS, SLOW_MUL, clamp } from './constants'
-import { STORE, type Obstacle } from './map'
+import { STORE, type Bounds, type Obstacle } from './map'
 import type { MoveInput } from './types'
 
 export interface Body {
@@ -43,8 +43,8 @@ export function discObstacle(x: number, z: number, r: number, id = 'disc'): Obst
   return { id, minX: x - r, maxX: x + r, minZ: z - r, maxZ: z + r }
 }
 
-export function collides(x: number, z: number, radius: number, obstacles: Obstacle[]): boolean {
-  if (x < STORE.minX + radius || x > STORE.maxX - radius || z < STORE.minZ + radius || z > STORE.maxZ - radius) {
+export function collides(x: number, z: number, radius: number, obstacles: Obstacle[], bounds: Bounds = STORE): boolean {
+  if (x < bounds.minX + radius || x > bounds.maxX - radius || z < bounds.minZ + radius || z > bounds.maxZ - radius) {
     return true
   }
   for (const o of obstacles) {
@@ -57,14 +57,21 @@ export function collides(x: number, z: number, radius: number, obstacles: Obstac
   return false
 }
 
-export function canOccupy(x: number, z: number, yaw: number, holding: boolean, obstacles: Obstacle[]): boolean {
-  if (collides(x, z, PLAYER_RADIUS, obstacles)) return false
+export function canOccupy(
+  x: number,
+  z: number,
+  yaw: number,
+  holding: boolean,
+  obstacles: Obstacle[],
+  bounds: Bounds = STORE,
+): boolean {
+  if (collides(x, z, PLAYER_RADIUS, obstacles, bounds)) return false
   if (!holding) return true
   const cart = cartAnchor(x, z, yaw)
-  return !collides(cart.x, cart.z, CART_RADIUS, obstacles)
+  return !collides(cart.x, cart.z, CART_RADIUS, obstacles, bounds)
 }
 
-export function depenetrate(x: number, z: number, radius: number, obstacles: Obstacle[]) {
+export function depenetrate(x: number, z: number, radius: number, obstacles: Obstacle[], bounds: Bounds = STORE) {
   let cx = x
   let cz = z
   for (let iter = 0; iter < 4; iter += 1) {
@@ -92,8 +99,8 @@ export function depenetrate(x: number, z: number, radius: number, obstacles: Obs
         cz += dz * k
       }
     }
-    cx = clamp(cx, STORE.minX + radius, STORE.maxX - radius)
-    cz = clamp(cz, STORE.minZ + radius, STORE.maxZ - radius)
+    cx = clamp(cx, bounds.minX + radius, bounds.maxX - radius)
+    cz = clamp(cz, bounds.minZ + radius, bounds.maxZ - radius)
   }
   return { x: cx, z: cz }
 }
@@ -103,9 +110,10 @@ export function stepAvatar(
   input: MoveInput,
   dt: number,
   obstacles: Obstacle[],
-  opts: { holding: boolean; slow: boolean; extras?: Obstacle[] },
+  opts: { holding: boolean; slow: boolean; extras?: Obstacle[]; bounds?: Bounds },
 ) {
   const step = Math.max(0, Math.min(dt, 0.05))
+  const bounds = opts.bounds ?? STORE
   const blocks = opts.extras && opts.extras.length ? obstacles.concat(opts.extras) : obstacles
   const aim = Number.isFinite(input.yaw) ? input.yaw : body.yaw
   const f = clamp(input.forward, -1, 1)
@@ -139,9 +147,9 @@ export function stepAvatar(
   const maxTurn = CONTROLLER.rotationSpeed * step
   const soften = 1 - Math.exp(-CONTROLLER.rotationSpeed * 1.35 * step)
   let turned = body.yaw + clamp(delta * soften, -maxTurn, maxTurn)
-  if (opts.holding && !canOccupy(body.x, body.z, turned, true, blocks)) {
+  if (opts.holding && !canOccupy(body.x, body.z, turned, true, blocks, bounds)) {
     const half = body.yaw + clamp(delta * soften * 0.45, -maxTurn * 0.45, maxTurn * 0.45)
-    turned = canOccupy(body.x, body.z, half, true, blocks) ? half : body.yaw
+    turned = canOccupy(body.x, body.z, half, true, blocks, bounds) ? half : body.yaw
   }
   body.yaw = turned
 
@@ -169,7 +177,7 @@ export function stepAvatar(
     if (dx === 0 && dz === 0) return true
     const nx = body.x + dx
     const nz = body.z + dz
-    if (!canOccupy(nx, nz, body.yaw, opts.holding, blocks)) return false
+    if (!canOccupy(nx, nz, body.yaw, opts.holding, blocks, bounds)) return false
     body.x = nx
     body.z = nz
     return true

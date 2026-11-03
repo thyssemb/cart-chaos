@@ -1,10 +1,10 @@
 import { CATALOG, colorById, type AccessoryId, type FaceId, type ProductType } from '@cart-chaos/shared'
-import { useMemo, useRef } from 'react'
-import type { Group, Mesh } from 'three'
+import { useEffect, useMemo, useRef } from 'react'
+import type { Group, Mesh, Sprite } from 'three'
 import { useFrame } from '@react-three/fiber'
 import { useGame } from '../store'
 import { FoodProduct, isPackedProduct } from './foodPack'
-import { makeBasket, makeFace, makeLabel, makeOveralls } from './textures'
+import { makeBasket, makeBubble, makeFace, makeLabel, makeOveralls } from './textures'
 import { views } from '../views'
 
 const idle: (typeof views.players extends Map<string, infer V> ? V : never) = {
@@ -23,22 +23,24 @@ const idle: (typeof views.players extends Map<string, infer V> ? V : never) = {
   connected: true,
 }
 
-export function Actors() {
+export function Actors({ playersOnly = false }: { playersOnly?: boolean }) {
   const playerIds = useGame((state) => state.playerIds)
   const productIds = useGame((state) => state.productIds)
   const cartIds = useGame((state) => state.cartIds)
   return (
     <group>
-      {cartIds.map((id) => (
-        <CartModel key={id} id={id} />
-      ))}
+      {!playersOnly &&
+        cartIds.map((id) => (
+          <CartModel key={id} id={id} />
+        ))}
       {playerIds.map((id) => (
         <CharacterModel key={id} id={id} />
       ))}
-      {productIds.map((id) => (
-        <ProductModel key={id} id={id} />
-      ))}
-      <LegendaryBeacon />
+      {!playersOnly &&
+        productIds.map((id) => (
+          <ProductModel key={id} id={id} />
+        ))}
+      {!playersOnly && <LegendaryBeacon />}
     </group>
   )
 }
@@ -114,8 +116,26 @@ export function CharacterModel({
   const face = useMemo(() => makeFace(lookFace), [lookFace])
   const hurt = useMemo(() => makeFace('hit'), [])
   const label = useMemo(() => makeLabel(name ?? storePlayer?.name ?? '', '#fff6df'), [name, storePlayer?.name])
+  const inLobby = useGame((state) => state.screen === 'lobby')
+  const readyLabel = useMemo(
+    () => makeLabel(storePlayer?.ready ? 'Prêt' : 'Pas prêt', storePlayer?.ready ? '#b6ffcf' : '#ffe1a8'),
+    [storePlayer?.ready],
+  )
+  const chat = useGame((state) => {
+    const chats = state.room?.chats
+    if (!chats) return null
+    for (let index = chats.length - 1; index >= 0; index -= 1) {
+      const item = chats[index]
+      if (item?.playerId === id) return item
+    }
+    return null
+  })
+  const bubble = useMemo(() => (chat ? makeBubble(chat.text) : null), [chat?.id, chat?.text])
+  const bubbleRef = useRef<Sprite>(null)
+  useEffect(() => () => readyLabel.dispose(), [readyLabel])
+  useEffect(() => () => bubble?.dispose(), [bubble])
 
-  useFrame((_, dt) => {
+  useFrame(({ clock }, dt) => {
     const pose = views.players.get(id)
     if (!group.current || !pose) return
     group.current.visible = pose.connected
@@ -177,11 +197,32 @@ export function CharacterModel({
     }
     if (armL.current) {
       armL.current.rotation.x = pushing || !pose.carrying ? arms.current : -0.35
+      armL.current.rotation.z = 0
       armL.current.position.z = pushing ? 0.08 : pose.carrying ? 0.08 : 0
     }
     if (armR.current) {
       armR.current.rotation.x = pushing ? arms.current : pose.carrying ? -1.2 : -arms.current
+      armR.current.rotation.z = 0
       armR.current.position.z = pushing ? 0.08 : pose.carrying ? 0.32 : 0
+    }
+    const emote = inLobby && pose.emote && speed < 1.5 && grounded ? pose.emote : null
+    if (emote === 'wave' && armR.current) {
+      armR.current.rotation.x = -2.45
+      armR.current.rotation.z = -0.2 + Math.sin(clock.elapsedTime * 10) * 0.55
+    } else if (emote === 'dance' && armL.current && armR.current && legL.current && legR.current) {
+      const beat = Math.sin(clock.elapsedTime * 7)
+      armL.current.rotation.x = -2.15
+      armR.current.rotation.x = -2.15
+      armL.current.rotation.z = 0.5
+      armR.current.rotation.z = -0.5
+      legL.current.rotation.x = 0.2 + beat * 0.45
+      legR.current.rotation.x = 0.2 - beat * 0.45
+      group.current.position.y += Math.abs(beat) * 0.1
+      group.current.rotation.z = beat * 0.12
+    }
+    if (bubbleRef.current) {
+      const age = chat ? Date.now() + useGame.getState().clockOffset - chat.at : 99999
+      bubbleRef.current.visible = inLobby && !!chat && age < 4500
     }
     const faceMesh = group.current.getObjectByName('face') as Mesh | undefined
     if (faceMesh && Array.isArray(faceMesh.material) === false) {
@@ -300,9 +341,19 @@ export function CharacterModel({
           <meshStandardMaterial color={palette.skin} />
         </mesh>
       </group>
-      <sprite position={[0, 2.35, 0]} scale={[1.5, 0.38, 1]}>
+      <sprite position={[0, inLobby ? 2.52 : 2.35, 0]} scale={[1.5, 0.38, 1]}>
         <spriteMaterial map={label} transparent depthTest={false} />
       </sprite>
+      {inLobby && (
+        <sprite position={[0, 2.12, 0]} scale={[1.35, 0.32, 1]}>
+          <spriteMaterial map={readyLabel} transparent depthTest={false} />
+        </sprite>
+      )}
+      {bubble && (
+        <sprite ref={bubbleRef} position={[0, 2.98, 0]} scale={[2.15, 0.42, 1]}>
+          <spriteMaterial map={bubble} transparent depthTest={false} />
+        </sprite>
+      )}
     </group>
   )
 }

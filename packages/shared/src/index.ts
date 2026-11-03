@@ -1,4 +1,5 @@
 export * from './constants'
+export * from './lobby'
 export * from './map'
 export * from './physics'
 export * from './rules'

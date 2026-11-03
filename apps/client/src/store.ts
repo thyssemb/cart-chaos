@@ -2,6 +2,7 @@ import type { AccessoryId, ColorId, FaceId, PublicRoom } from '@cart-chaos/share
 import { sanitizeAccessory, sanitizeColor, sanitizeFace } from '@cart-chaos/shared'
 import { create } from 'zustand'
 import { clampSensitivity } from './scene/cameraRig'
+import { views } from './views'
 
 export type Screen = 'menu' | 'customize' | 'howto' | 'settings' | 'lobby' | 'game'
 
@@ -117,11 +118,16 @@ export const useGame = create<State>((set, get) => ({
   applyRoom: (room, playerId, token) => {
     const prev = get()
     let screen = prev.screen
+    const prevPhase = prev.room?.phase
+    const breakRoom = prev.screen === 'lobby' || prevPhase === 'lobby' || (prev.screen === 'settings' && prevPhase === 'countdown')
     if (room.phase === 'lobby') {
       if (screen === 'menu' || screen === 'game') screen = 'lobby'
+    } else if (room.phase === 'countdown' && breakRoom) {
+      if (screen !== 'settings') screen = 'lobby'
     } else if (screen !== 'settings') {
       screen = 'game'
     }
+    if (room.phase === 'playing' && prev.room?.phase !== 'playing' && breakRoom) views.local.ready = false
     const nextPlayer = playerId ?? prev.playerId
     const nextToken = token ?? prev.token
     if (nextPlayer && nextToken) {
