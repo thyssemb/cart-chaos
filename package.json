@@ -1,0 +1,30 @@
+{
+  "name": "cart-chaos",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "description": "CART CHAOS — party game 3D multijoueur dans le navigateur",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n server,client -c magenta,cyan \"npm run dev -w @cart-chaos/server\" \"npm run dev -w @cart-chaos/client\"",
+    "build": "npm run typecheck && npm run build -w @cart-chaos/server && npm run build -w @cart-chaos/client",
+    "start": "CART_STATIC=1 node apps/server/dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc -p packages/shared/tsconfig.json --noEmit && tsc -p apps/server/tsconfig.json --noEmit && tsc -p apps/client/tsconfig.json --noEmit",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.15.0",
+    "concurrently": "^9.1.0",
+    "eslint": "^9.15.0",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.16.0",
+    "vitest": "^2.1.5"
+  }
+}

@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  background: #14323c;
+  color: #fff6df;
+  font-family: Fredoka, 'Trebuchet MS', 'Segoe UI', sans-serif;
+}
+
+button,
+input {
+  font-family: inherit;
+}
+
+canvas {
+  display: block;
+}
+
+.arcade-btn {
+  border-radius: 1rem;
+  font-weight: 700;
+  transition: transform 0.08s ease, filter 0.08s ease;
+}
+
+.arcade-btn:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.arcade-btn:active {
+  transform: translateY(2px);
+}
+
+.arcade-btn:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.3);
+  opacity: 0.55;
+  transform: none;
+}
