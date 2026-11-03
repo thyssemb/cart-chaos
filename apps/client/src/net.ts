@@ -56,9 +56,13 @@ function ask(event: string, payload?: unknown) {
   })
 }
 
+function lookPayload() {
+  const settings = useGame.getState().settings
+  return { name: settings.name, colorId: settings.colorId, faceId: settings.faceId, accessory: settings.accessory }
+}
+
 export async function createRoom() {
-  const name = useGame.getState().settings.name
-  const response = await ask('create', { name })
+  const response = await ask('create', lookPayload())
   if (!response.ok || !response.state || !response.playerId || !response.token) {
     useGame.getState().setError(response.error ?? 'Création impossible')
     return
@@ -67,8 +71,7 @@ export async function createRoom() {
 }
 
 export async function joinRoom(code: string) {
-  const name = useGame.getState().settings.name
-  const response = await ask('join', { name, code })
+  const response = await ask('join', { ...lookPayload(), code })
   if (!response.ok || !response.state || !response.playerId || !response.token) {
     useGame.getState().setError(response.error ?? 'Salon introuvable')
     return
@@ -84,6 +87,19 @@ export async function sendReady() {
 export async function sendColor(colorId: string) {
   const response = await ask('color', { colorId })
   if (!response.ok) useGame.getState().setFlash(response.error ?? 'Couleur refusée')
+}
+
+export async function sendLook() {
+  const settings = useGame.getState().settings
+  const response = await ask('look', { colorId: settings.colorId, faceId: settings.faceId, accessory: settings.accessory })
+  if (!response.ok) useGame.getState().setFlash(response.error ?? 'Avatar refusé')
+  return response.ok
+}
+
+export async function sendChat(text: string) {
+  const response = await ask('chat', { text })
+  if (!response.ok) useGame.getState().setFlash(response.error ?? 'Message refusé')
+  return response.ok
 }
 
 export async function sendStart() {

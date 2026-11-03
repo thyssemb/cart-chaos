@@ -3,7 +3,7 @@ import { ensureAudio, setMusicMode } from './audio'
 import { GameCanvas, MenuCanvas } from './scene/GameCanvas'
 import { useGame } from './store'
 import { Hud } from './ui/Hud'
-import { HowTo, Lobby, Menu, Settings } from './ui/Screens'
+import { Customize, HowTo, Lobby, Menu, Settings } from './ui/Screens'
 
 export function App() {
   const screen = useGame((state) => state.screen)
@@ -23,6 +23,7 @@ export function App() {
     <main className="relative h-full w-full overflow-hidden">
       <div className="absolute inset-0">{screen === 'game' ? <GameCanvas /> : <MenuCanvas />}</div>
       {screen === 'menu' && <Menu />}
+      {screen === 'customize' && <Customize />}
       {screen === 'howto' && <HowTo />}
       {screen === 'settings' && <Settings />}
       {screen === 'lobby' && <Lobby />}

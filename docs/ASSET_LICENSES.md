@@ -1,6 +1,8 @@
 # Licences des assets
 
-Aucun modèle Kenney, Quaternius ou Poly Haven n’est embarqué. Les rayons, le sol, les caddies, les produits et les personnages sont de la géométrie procédurale originale créée pour CART CHAOS (formes simples, textures canvas générées au lancement). Ils ne sont pas soumis à une licence tierce.
+Aucun fichier GLB Kenney, Quaternius, Poly Haven ou itch.io n’a été téléchargé : ces packs n’étaient pas présents dans l’environnement, et le jeu n’invente pas de lien vers un fichier absent.
+
+Les rayons, le sol, les caisses, les caddies, les produits (lait, pain, œufs, fromage, bananes, céréales, bouteille, surgelé, papier toilette) et les personnages sont de la géométrie Three.js originale, avec des textures canvas générées au lancement. Visages, casquette et lunettes sont dessinés dans le même style. Ils ne sont pas soumis à une licence tierce.
 
 ## Police
 

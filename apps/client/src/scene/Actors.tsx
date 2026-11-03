@@ -1,4 +1,4 @@
-import { CATALOG, colorById, type ProductType } from '@cart-chaos/shared'
+import { CATALOG, colorById, type AccessoryId, type FaceId, type ProductType } from '@cart-chaos/shared'
 import { useMemo, useRef } from 'react'
 import type { Group, Mesh } from 'three'
 import { useFrame } from '@react-three/fiber'
@@ -73,12 +73,24 @@ export function DemoCrew() {
   return (
     <group ref={rig}>
       <CartModel id="demo" colorId="rose" />
-      <CharacterModel id="demo" colorId="rose" name="Lina" />
+      <CharacterModel id="demo" colorId="rose" name="Lina" faceId="wink" accessory="cap" />
     </group>
   )
 }
 
-export function CharacterModel({ id, colorId, name }: { id: string; colorId?: string; name?: string }) {
+export function CharacterModel({
+  id,
+  colorId,
+  name,
+  faceId,
+  accessory,
+}: {
+  id: string
+  colorId?: string
+  name?: string
+  faceId?: FaceId
+  accessory?: AccessoryId
+}) {
   const group = useRef<Group>(null)
   const legL = useRef<Group>(null)
   const legR = useRef<Group>(null)
@@ -93,13 +105,14 @@ export function CharacterModel({ id, colorId, name }: { id: string; colorId?: st
   const prevGround = useRef(true)
   const prevYaw = useRef(0)
   const gait = useRef(0)
-  const storeColor = useGame((state) => state.room?.players.find((player) => player.id === id)?.colorId)
-  const storeName = useGame((state) => state.room?.players.find((player) => player.id === id)?.name)
-  const palette = colorById(colorId ?? storeColor ?? 'coral')
+  const storePlayer = useGame((state) => state.room?.players.find((player) => player.id === id))
+  const palette = colorById(colorId ?? storePlayer?.colorId ?? 'coral')
+  const lookFace = faceId ?? storePlayer?.faceId ?? 'smile'
+  const lookAccessory = accessory ?? storePlayer?.accessory ?? 'none'
   const overalls = useMemo(() => makeOveralls(), [])
-  const face = useMemo(() => makeFace(false), [])
-  const hurt = useMemo(() => makeFace(true), [])
-  const label = useMemo(() => makeLabel(name ?? storeName ?? '', '#fff6df'), [name, storeName])
+  const face = useMemo(() => makeFace(lookFace), [lookFace])
+  const hurt = useMemo(() => makeFace('hit'), [])
+  const label = useMemo(() => makeLabel(name ?? storePlayer?.name ?? '', '#fff6df'), [name, storePlayer?.name])
 
   useFrame((_, dt) => {
     const pose = views.players.get(id)
@@ -222,6 +235,34 @@ export function CharacterModel({ id, colorId, name }: { id: string; colorId?: st
         <planeGeometry args={[0.62, 0.5]} />
         <meshBasicMaterial map={face} transparent toneMapped={false} />
       </mesh>
+      {lookAccessory === 'cap' && (
+        <group position={[0, 2.16, 0.06]}>
+          <mesh castShadow>
+            <boxGeometry args={[0.86, 0.16, 0.78]} />
+            <meshStandardMaterial color={palette.hex} />
+          </mesh>
+          <mesh position={[0, -0.02, 0.46]} castShadow>
+            <boxGeometry args={[0.8, 0.05, 0.28]} />
+            <meshStandardMaterial color={palette.hex} />
+          </mesh>
+        </group>
+      )}
+      {lookAccessory === 'glasses' && (
+        <group position={[0, 1.64, 0.42]}>
+          <mesh position={[-0.16, 0, 0]}>
+            <torusGeometry args={[0.11, 0.018, 8, 16]} />
+            <meshStandardMaterial color="#1b2430" />
+          </mesh>
+          <mesh position={[0.16, 0, 0]}>
+            <torusGeometry args={[0.11, 0.018, 8, 16]} />
+            <meshStandardMaterial color="#1b2430" />
+          </mesh>
+          <mesh>
+            <boxGeometry args={[0.1, 0.02, 0.02]} />
+            <meshStandardMaterial color="#1b2430" />
+          </mesh>
+        </group>
+      )}
       <mesh position={[0, 1.98, -0.02]} castShadow>
         <boxGeometry args={[0.92, 0.28, 0.78]} />
         <meshStandardMaterial color={palette.hair} />
@@ -356,10 +397,16 @@ function ProductShape({ type }: { type: ProductType }) {
   const def = CATALOG[type]
   if (type === 'drink') {
     return (
-      <mesh castShadow>
-        <cylinderGeometry args={[0.1, 0.1, 0.28, 10]} />
-        <meshStandardMaterial color={def.color} />
-      </mesh>
+      <group>
+        <mesh castShadow position={[0, 0, 0]}>
+          <cylinderGeometry args={[0.09, 0.1, 0.26, 10]} />
+          <meshStandardMaterial color={def.color} />
+        </mesh>
+        <mesh position={[0, 0.18, 0]}>
+          <cylinderGeometry args={[0.035, 0.04, 0.08, 8]} />
+          <meshStandardMaterial color={def.accent} />
+        </mesh>
+      </group>
     )
   }
   if (type === 'toilet' || type === 'legendary') {
@@ -378,24 +425,97 @@ function ProductShape({ type }: { type: ProductType }) {
   }
   if (type === 'banana') {
     return (
-      <mesh castShadow rotation={[0.4, 0.2, 0.8]}>
-        <capsuleGeometry args={[0.06, 0.16, 4, 8]} />
+      <group>
+        <mesh castShadow rotation={[0.5, 0.2, 0.9]} position={[-0.04, 0, 0]}>
+          <capsuleGeometry args={[0.045, 0.16, 4, 8]} />
+          <meshStandardMaterial color={def.color} />
+        </mesh>
+        <mesh castShadow rotation={[0.35, -0.3, 0.55]} position={[0.06, 0, 0.02]}>
+          <capsuleGeometry args={[0.04, 0.14, 4, 8]} />
+          <meshStandardMaterial color={def.accent} />
+        </mesh>
+      </group>
+    )
+  }
+  if (type === 'milk') {
+    return (
+      <group>
+        <mesh castShadow>
+          <boxGeometry args={[0.16, 0.28, 0.16]} />
+          <meshStandardMaterial color={def.color} />
+        </mesh>
+        <mesh position={[0, 0.18, 0]}>
+          <boxGeometry args={[0.08, 0.08, 0.08]} />
+          <meshStandardMaterial color={def.accent} />
+        </mesh>
+      </group>
+    )
+  }
+  if (type === 'bread') {
+    return (
+      <mesh castShadow>
+        <capsuleGeometry args={[0.08, 0.16, 4, 8]} />
         <meshStandardMaterial color={def.color} />
       </mesh>
     )
   }
-  const tall = type === 'cereal' || type === 'milk'
-  return (
-    <group>
-      <mesh castShadow>
-        <boxGeometry args={[tall ? 0.18 : 0.24, tall ? 0.32 : 0.2, 0.16]} />
+  if (type === 'eggs') {
+    return (
+      <group>
+        <mesh position={[0, -0.04, 0]}>
+          <boxGeometry args={[0.22, 0.06, 0.16]} />
+          <meshStandardMaterial color="#f4efe4" />
+        </mesh>
+        {[[-0.05, 0.02], [0.05, 0.02], [0, 0.02]].map(([x, y]) => (
+          <mesh key={`${x}`} position={[x ?? 0, y ?? 0, 0]} castShadow>
+            <sphereGeometry args={[0.045, 10, 8]} />
+            <meshStandardMaterial color={def.color} />
+          </mesh>
+        ))}
+      </group>
+    )
+  }
+  if (type === 'cheese') {
+    return (
+      <mesh castShadow rotation={[0, 0.4, 0]}>
+        <cylinderGeometry args={[0.12, 0.12, 0.08, 3]} />
         <meshStandardMaterial color={def.color} />
       </mesh>
-      <mesh position={[0, 0, 0.082]}>
-        <boxGeometry args={[tall ? 0.12 : 0.16, 0.06, 0.01]} />
-        <meshStandardMaterial color={def.accent} />
-      </mesh>
-    </group>
+    )
+  }
+  if (type === 'cereal') {
+    return (
+      <group>
+        <mesh castShadow>
+          <boxGeometry args={[0.18, 0.34, 0.08]} />
+          <meshStandardMaterial color={def.color} />
+        </mesh>
+        <mesh position={[0, 0.04, 0.042]}>
+          <boxGeometry args={[0.12, 0.1, 0.01]} />
+          <meshStandardMaterial color={def.accent} />
+        </mesh>
+      </group>
+    )
+  }
+  if (type === 'frozen') {
+    return (
+      <group>
+        <mesh castShadow>
+          <boxGeometry args={[0.2, 0.14, 0.16]} />
+          <meshStandardMaterial color={def.color} />
+        </mesh>
+        <mesh position={[0, 0, 0.082]}>
+          <boxGeometry args={[0.12, 0.04, 0.01]} />
+          <meshStandardMaterial color={def.accent} />
+        </mesh>
+      </group>
+    )
+  }
+  return (
+    <mesh castShadow>
+      <boxGeometry args={[0.2, 0.2, 0.16]} />
+      <meshStandardMaterial color={def.color} />
+    </mesh>
   )
 }
 

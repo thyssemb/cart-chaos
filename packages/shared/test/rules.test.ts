@@ -17,6 +17,8 @@ import {
   pointsForItem,
   rollList,
   sanitizeCode,
+  playerName,
+  sanitizeChat,
   sanitizeName,
   stealBanner,
   applyKeyTurn,
@@ -118,8 +120,8 @@ describe('carte et déplacement', () => {
   it('avance, recule, strafe et tourne du côté demandé par la caméra', () => {
     const spot = { x: -3.2, z: -6.2 }
     const wish = (aim: number, forward: number, strafe: number) => {
-      let x = Math.sin(aim) * forward - Math.cos(aim) * strafe
-      let z = Math.cos(aim) * forward + Math.sin(aim) * strafe
+      const x = Math.sin(aim) * forward - Math.cos(aim) * strafe
+      const z = Math.cos(aim) * forward + Math.sin(aim) * strafe
       const len = Math.hypot(x, z) || 1
       return { x: x / len, z: z / len }
     }
@@ -215,6 +217,11 @@ describe('entrées', () => {
   it('nettoie pseudo et code', () => {
     expect(sanitizeName('  Kévin<script>  ')).toBe('Kévin')
     expect(sanitizeName('')).toBe('Joueur')
+    expect(playerName('Jo').ok).toBe(false)
+    expect(playerName('  Zoé  ')).toEqual({ ok: true, name: 'Zoé' })
+    expect(playerName('abcdefghijklmnopqrstuvwxyz')).toEqual({ ok: true, name: 'abcdefghijklmnop' })
+    expect(sanitizeChat('  <b>salut</b>  ')).toBe('salut')
+    expect(sanitizeChat('   ')).toBeNull()
     expect(sanitizeCode(' ab-12 ')).toBe('AB12')
   })
 

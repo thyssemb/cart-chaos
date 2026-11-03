@@ -60,6 +60,12 @@ describe('socket multijoueur', () => {
     const full = await emit<{ ok: boolean; error?: string }>(stranger, 'join', { name: 'X', code: 'ZZZZ' })
     expect(full.ok).toBe(false)
 
+    const tooSoon = await emit<{ ok: boolean }>(kevin, 'start')
+    expect(tooSoon.ok).toBe(false)
+    expect((await emit<{ ok: boolean }>(kevin, 'ready')).ok).toBe(true)
+    expect((await emit<{ ok: boolean }>(lina, 'ready')).ok).toBe(true)
+    const said = await emit<{ ok: boolean; state?: PublicRoom }>(lina, 'chat', { text: '  <b>prête</b>  ' })
+    expect(said.ok).toBe(true)
     const started = await emit<{ ok: boolean }>(kevin, 'start')
     expect(started.ok).toBe(true)
     game.tick(3000)

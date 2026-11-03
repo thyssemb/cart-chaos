@@ -2,8 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { CATALOG, MATCH_MS, type ProductType } from '@cart-chaos/shared'
 import { Room } from '../src/room'
 
+function readyAll(room: Room) {
+  for (const player of room.players.values()) {
+    if (player.connected && !player.ready) room.setReady(player.id)
+  }
+}
+
 function play(room: Room) {
   const [host] = [...room.players.values()]
+  readyAll(room)
   expect(room.start(host!.id).ok).toBe(true)
   room.tick(3000)
   expect(room.phase).toBe('playing')
@@ -18,11 +25,36 @@ function pair() {
   return { room, a: a.player, b: b.player }
 }
 
+describe('salon', () => {
+  it('partage le look et limite le chat', () => {
+    const room = new Room('LOOK')
+    const host = room.addPlayer('Nino', { colorId: 'blue', faceId: 'wink', accessory: 'cap' })
+    const guest = room.addPlayer('Lina', { colorId: 'blue', faceId: 'cool', accessory: 'glasses' })
+    if (!host.ok || !guest.ok) throw new Error('joueurs')
+    expect(host.player.colorId).toBe('blue')
+    expect(guest.player.colorId).not.toBe('blue')
+    expect(room.setLook(host.player.id, { colorId: 'rose', faceId: 'grumpy', accessory: 'none' }).ok).toBe(true)
+    const snap = room.snapshot()
+    expect(snap.players.find((player) => player.id === host.player.id)).toMatchObject({ faceId: 'grumpy', accessory: 'none', colorId: 'rose' })
+    expect(room.say(guest.player.id, 'salut').ok).toBe(true)
+    expect(room.say(guest.player.id, 'deux').ok).toBe(true)
+    expect(room.say(guest.player.id, 'trois').ok).toBe(true)
+    expect(room.say(guest.player.id, 'quatre').ok).toBe(false)
+    expect(room.snapshot().chats.map((chat) => chat.text)).toEqual(['salut', 'deux', 'trois'])
+    readyAll(room)
+    expect(room.start(host.player.id).ok).toBe(true)
+    room.tick(3000)
+    expect(room.say(guest.player.id, 'en jeu').ok).toBe(false)
+  })
+})
+
 describe('manche', () => {
   it('lance à un seul joueur puis enchaîne compte à rebours, jeu et résultats', () => {
     const room = new Room('SOLO')
     const only = room.addPlayer('Nino')
     if (!only.ok) throw new Error('joueur')
+    expect(room.start(only.player.id).ok).toBe(false)
+    room.setReady(only.player.id)
     expect(room.start(only.player.id).ok).toBe(true)
     room.tick(3000)
     expect(room.phase).toBe('playing')

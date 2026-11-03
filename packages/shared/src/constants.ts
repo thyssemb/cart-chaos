@@ -58,6 +58,24 @@ export const COLORS = [
 
 export type ColorId = (typeof COLORS)[number]['id']
 
+export const FACES = [
+  { id: 'smile', label: 'Sourire' },
+  { id: 'wink', label: 'Clin d’œil' },
+  { id: 'grumpy', label: 'Bougon' },
+  { id: 'wow', label: 'Surpris' },
+  { id: 'cool', label: 'Cool' },
+] as const
+
+export type FaceId = (typeof FACES)[number]['id']
+
+export const ACCESSORIES = [
+  { id: 'none', label: 'Aucun' },
+  { id: 'cap', label: 'Casquette' },
+  { id: 'glasses', label: 'Lunettes' },
+] as const
+
+export type AccessoryId = (typeof ACCESSORIES)[number]['id']
+
 export const PRODUCT_TYPES = [
   'milk',
   'bread',

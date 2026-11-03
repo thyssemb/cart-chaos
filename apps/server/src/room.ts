@@ -36,8 +36,10 @@ import {
   stealBanner,
   stepAvatar,
   zeroInput,
+  type AccessoryId,
   type ActionType,
   type ColorId,
+  type FaceId,
   type MoveInput,
   type Phase,
   type ProductState,
@@ -51,6 +53,8 @@ interface Player {
   token: string
   name: string
   colorId: ColorId
+  faceId: FaceId
+  accessory: AccessoryId
   host: boolean
   ready: boolean
   connected: boolean
@@ -79,6 +83,7 @@ interface Player {
   steal: { productId: string; elapsed: number; blocked: boolean } | null
   input: MoveInput
   lastInputAt: number
+  chatAt: number[]
 }
 
 interface Product {
@@ -129,9 +134,11 @@ export class Room {
   products = new Map<string, Product>()
   carts = new Map<string, Cart>()
   notices: { id: number; text: string; kind: 'steal' | 'info' | 'legendary' | 'score'; targetId: string | null; ttl: number }[] = []
+  chats: { id: number; playerId: string; name: string; text: string; at: number }[] = []
   sfx: { id: number; type: SfxType; x: number; z: number }[] = []
   private legendarySpawned = false
   private noticeSeq = 1
+  private chatSeq = 1
   private sfxSeq = 1
   private rng = Math.random
 
@@ -147,11 +154,14 @@ export class Room {
     return n
   }
 
-  addPlayer(name: string): { ok: true; player: Player; token: string } | { ok: false; error: string } {
+  addPlayer(
+    name: string,
+    look?: { colorId?: ColorId | null; faceId?: FaceId; accessory?: AccessoryId },
+  ): { ok: true; player: Player; token: string } | { ok: false; error: string } {
     if (this.players.size >= MAX_PLAYERS) return { ok: false, error: 'Salon plein' }
     const id = `p_${rid()}`
     const token = `${rid()}${rid()}`
-    const player = this.makePlayer(id, token, name, this.players.size === 0)
+    const player = this.makePlayer(id, token, name, this.players.size === 0, look)
     this.players.set(id, player)
     this.carts.set(id, {
       id,
@@ -230,6 +240,34 @@ export class Room {
     return { ok: true }
   }
 
+  setLook(playerId: string, look: { colorId: ColorId; faceId: FaceId; accessory: AccessoryId }) {
+    const player = this.players.get(playerId)
+    if (!player) return { ok: false, error: 'Joueur absent' }
+    if (this.phase !== 'lobby' && this.phase !== 'results') return { ok: false, error: 'Pas maintenant' }
+    if (look.colorId !== player.colorId) {
+      const taken = [...this.players.values()].some((other) => other.id !== player.id && other.colorId === look.colorId)
+      if (taken) return { ok: false, error: 'Couleur prise' }
+      player.colorId = look.colorId
+    }
+    player.faceId = look.faceId
+    player.accessory = look.accessory
+    return { ok: true }
+  }
+
+  say(playerId: string, text: string) {
+    const player = this.players.get(playerId)
+    if (!player?.connected) return { ok: false, error: 'Joueur absent' }
+    if (this.phase !== 'lobby') return { ok: false, error: 'Le chat est réservé au salon' }
+    const now = Date.now()
+    player.chatAt = player.chatAt.filter((at) => now - at < 5000)
+    if (player.chatAt.length >= 3) return { ok: false, error: 'Doucement' }
+    player.chatAt.push(now)
+    this.chatSeq += 1
+    this.chats.push({ id: this.chatSeq, playerId: player.id, name: player.name, text, at: now })
+    if (this.chats.length > 24) this.chats.shift()
+    return { ok: true }
+  }
+
   setInput(playerId: string, input: MoveInput) {
     const player = this.players.get(playerId)
     if (!player || !player.connected) return
@@ -255,6 +293,9 @@ export class Room {
     if (this.phase !== 'lobby' && this.phase !== 'results') return { ok: false, error: 'Pas maintenant' }
     if (!this.canControl(playerId)) return { ok: false, error: 'Seul l’hôte peut lancer' }
     if (this.connectedCount() < MIN_PLAYERS) return { ok: false, error: 'Il faut au moins 1 joueur' }
+    if (this.phase === 'lobby' && [...this.players.values()].some((player) => player.connected && !player.ready)) {
+      return { ok: false, error: 'Tout le monde doit être prêt' }
+    }
     this.beginRound()
     return { ok: true }
   }
@@ -286,6 +327,8 @@ export class Room {
         id: player.id,
         name: player.name,
         colorId: player.colorId,
+        faceId: player.faceId,
+        accessory: player.accessory,
         host: player.host,
         ready: player.ready,
         connected: player.connected,
@@ -329,6 +372,7 @@ export class Room {
         itemIds: [...cart.itemIds],
       })),
       notices: this.notices.map((notice) => ({ ...notice })),
+      chats: this.chats.map((chat) => ({ ...chat })),
       sfx: this.sfx.slice(-8),
     }
   }
@@ -882,13 +926,21 @@ export class Room {
     player.holdingCart = true
   }
 
-  private makePlayer(id: string, token: string, name: string, host: boolean): Player {
+  private makePlayer(
+    id: string,
+    token: string,
+    name: string,
+    host: boolean,
+    look?: { colorId?: ColorId | null; faceId?: FaceId; accessory?: AccessoryId },
+  ): Player {
     const spawn = SPAWNS[this.players.size % SPAWNS.length]!
     return {
       id,
       token,
       name,
-      colorId: this.freeColor(),
+      colorId: this.pickColor(look?.colorId),
+      faceId: look?.faceId ?? 'smile',
+      accessory: look?.accessory ?? 'none',
       host,
       ready: false,
       connected: true,
@@ -917,7 +969,13 @@ export class Room {
       steal: null,
       input: zeroInput(spawn.yaw),
       lastInputAt: 0,
+      chatAt: [],
     }
+  }
+
+  private pickColor(wanted?: ColorId | null): ColorId {
+    if (wanted && ![...this.players.values()].some((player) => player.colorId === wanted)) return wanted
+    return this.freeColor()
   }
 
   private freeColor(): ColorId {
@@ -949,12 +1007,12 @@ export class Room {
 export class Rooms {
   private rooms = new Map<string, Room>()
 
-  create(name: string) {
+  create(name: string, look?: { colorId?: ColorId | null; faceId?: FaceId; accessory?: AccessoryId }) {
     let code = makeRoomCode()
     while (this.rooms.has(code)) code = makeRoomCode()
     const room = new Room(code)
     this.rooms.set(code, room)
-    const joined = room.addPlayer(name)
+    const joined = room.addPlayer(name, look)
     if (!joined.ok) throw new Error(joined.error)
     return { room, player: joined.player, token: joined.token }
   }

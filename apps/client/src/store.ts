@@ -1,10 +1,14 @@
-import type { PublicRoom } from '@cart-chaos/shared'
+import type { AccessoryId, ColorId, FaceId, PublicRoom } from '@cart-chaos/shared'
+import { sanitizeAccessory, sanitizeColor, sanitizeFace } from '@cart-chaos/shared'
 import { create } from 'zustand'
 
-export type Screen = 'menu' | 'howto' | 'settings' | 'lobby' | 'game'
+export type Screen = 'menu' | 'customize' | 'howto' | 'settings' | 'lobby' | 'game'
 
 export interface Settings {
   name: string
+  colorId: ColorId
+  faceId: FaceId
+  accessory: AccessoryId
   master: number
   music: number
   sfx: number
@@ -42,18 +46,26 @@ const SESSION_KEY = 'cart-chaos-session'
 function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY)
-    if (!raw) return { name: 'Joueur', master: 0.85, music: 0.35, sfx: 0.8, camera: 1 }
+    if (!raw) return defaultSettings()
     const parsed = JSON.parse(raw) as Partial<Settings>
     return {
-      name: typeof parsed.name === 'string' && parsed.name.trim() ? parsed.name.slice(0, 14) : 'Joueur',
+      ...defaultSettings(),
+      name: typeof parsed.name === 'string' ? parsed.name.slice(0, 16) : '',
+      colorId: sanitizeColor(parsed.colorId) ?? 'coral',
+      faceId: sanitizeFace(parsed.faceId) ?? 'smile',
+      accessory: sanitizeAccessory(parsed.accessory) ?? 'none',
       master: clamp01(parsed.master, 0.85),
       music: clamp01(parsed.music, 0.35),
       sfx: clamp01(parsed.sfx, 0.8),
       camera: clamp01(parsed.camera, 1),
     }
   } catch {
-    return { name: 'Joueur', master: 0.85, music: 0.35, sfx: 0.8, camera: 1 }
+    return defaultSettings()
   }
+}
+
+function defaultSettings(): Settings {
+  return { name: '', colorId: 'coral', faceId: 'smile', accessory: 'none', master: 0.85, music: 0.35, sfx: 0.8, camera: 1 }
 }
 
 function clamp01(value: unknown, fallback: number) {

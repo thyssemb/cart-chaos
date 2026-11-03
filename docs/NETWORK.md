@@ -10,27 +10,30 @@ En développement, le client est sur `http://localhost:5173` et proxyfie `/socke
 
 | Événement | Charge | Réponse |
 | --- | --- | --- |
-| `create` | `{ name }` | ack `{ ok, playerId, token, code, state }` |
-| `join` | `{ name, code }` | ack |
+| `create` | `{ name, colorId?, faceId?, accessory? }` | ack `{ ok, playerId, token, code, state }` |
+| `join` | `{ name, code, colorId?, faceId?, accessory? }` | ack |
 | `rejoin` | `{ code, token }` | ack |
 | `ready` | | ack |
+| `look` | `{ colorId, faceId, accessory }` | ack, salon ou résultats |
+| `chat` | `{ text }` | ack, salon seulement, 80 caractères, 3 messages / 5 s |
 | `color` | `{ colorId }` | ack |
-| `start` | | ack, hôte, au moins 1 joueur |
+| `start` | | ack, hôte, joueurs connectés prêts |
 | `rematch` | | ack, même règle |
 | `leave` | | ack |
 | `input` | `{ seq, forward, strafe, yaw, sprint, jump, interactHeld }` | sans ack, plafond 40/s |
 | `action` | `{ type: interact \| grab \| shove }` | ack, plafond 16/s |
 
-Les noms sont nettoyés (14 caractères). Les codes salon font 4 caractères. Les couleurs inconnues et les actions hors phase sont refusées. Un salon plein (6) est refusé.
+Les pseudos font 3 à 16 caractères après nettoyage. Les codes salon font 4 caractères. Les couleurs, visages et accessoires inconnus sont ignorés ou refusés. Le chat du salon coupe les balises, refuse le vide et bloque au-delà de 3 messages en 5 secondes. Un salon plein (6) est refusé. La manche ne démarre que si chaque joueur connecté est prêt.
 
 ## Serveur → client
 
 `state` : snapshot à 20 Hz.
 
 - `phase`, `round`, `timeLeftMs`, `endsAt`, `serverNow`
-- `players` : pose, liste, score, objet porté, caddie tenu, progression de vol
+- `players` : pose, liste, score, visage, accessoire, objet porté, caddie tenu, progression de vol
 - `products` : id stable, type, état (`shelf`, `ground`, `carried`, `cart`, `validated`, `hidden`)
 - `carts` : pose et `itemIds`
+- `chats` : messages du salon (id, pseudo, texte)
 - `notices` : textes (vol, légendaire, score), cible éventuelle
 - `sfx` : identifiants croissants pour jouer un son une seule fois
 

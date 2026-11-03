@@ -1,4 +1,14 @@
-import { CATALOG, LIST_POOL, LIST_SIZE, POINTS, type ProductType } from './constants'
+import {
+  ACCESSORIES,
+  CATALOG,
+  FACES,
+  LIST_POOL,
+  LIST_SIZE,
+  POINTS,
+  type AccessoryId,
+  type FaceId,
+  type ProductType,
+} from './constants'
 
 export interface ScoreResult {
   points: number
@@ -115,15 +125,45 @@ export function makeRoomCode(rng: () => number = Math.random) {
   return code
 }
 
-export function sanitizeName(raw: unknown) {
-  if (typeof raw !== 'string') return 'Joueur'
-  const clean = raw
+export function cleanName(raw: unknown) {
+  if (typeof raw !== 'string') return ''
+  return raw
     .replace(/<[^>]*>/g, '')
     .replace(/[^\p{L}\p{N} _'-]/gu, '')
     .trim()
     .replace(/\s+/g, ' ')
-    .slice(0, 14)
+    .slice(0, 16)
+}
+
+export function sanitizeName(raw: unknown) {
+  const clean = cleanName(raw)
   return clean.length ? clean : 'Joueur'
+}
+
+export function playerName(raw: unknown): { ok: true; name: string } | { ok: false; error: string } {
+  const name = cleanName(raw)
+  if (name.length < 3) return { ok: false, error: 'Le pseudo doit faire 3 à 16 caractères' }
+  return { ok: true, name }
+}
+
+export function sanitizeFace(raw: unknown): FaceId | null {
+  if (typeof raw !== 'string') return null
+  return FACES.some((face) => face.id === raw) ? (raw as FaceId) : null
+}
+
+export function sanitizeAccessory(raw: unknown): AccessoryId | null {
+  if (typeof raw !== 'string') return null
+  return ACCESSORIES.some((item) => item.id === raw) ? (raw as AccessoryId) : null
+}
+
+export function sanitizeChat(raw: unknown) {
+  if (typeof raw !== 'string') return null
+  const text = raw
+    .replace(/<[^>]*>/g, '')
+    .replace(/[\u0000-\u001f]/g, '')
+    .trim()
+    .slice(0, 80)
+  return text.length ? text : null
 }
 
 export function sanitizeCode(raw: unknown) {

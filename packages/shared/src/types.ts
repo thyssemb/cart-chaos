@@ -1,4 +1,4 @@
-import type { ColorId, ProductType } from './constants'
+import type { AccessoryId, ColorId, FaceId, ProductType } from './constants'
 
 export type Phase = 'lobby' | 'countdown' | 'playing' | 'results'
 
@@ -22,6 +22,8 @@ export interface PublicPlayer {
   id: string
   name: string
   colorId: ColorId
+  faceId: FaceId
+  accessory: AccessoryId
   host: boolean
   ready: boolean
   connected: boolean
@@ -67,6 +69,14 @@ export interface PublicCart {
   itemIds: string[]
 }
 
+export interface PublicChat {
+  id: number
+  playerId: string
+  name: string
+  text: string
+  at: number
+}
+
 export interface PublicNotice {
   id: number
   text: string
@@ -93,6 +103,7 @@ export interface PublicRoom {
   products: PublicProduct[]
   carts: PublicCart[]
   notices: PublicNotice[]
+  chats: PublicChat[]
   sfx: PublicSfx[]
 }
 

@@ -240,6 +240,23 @@ function buildDeco() {
 }
 
 function Deco({ spots }: { spots: { position: [number, number, number]; color: string; scale: [number, number, number] }[] }) {
+  const boxes = spots.filter((_, index) => index % 3 !== 0)
+  const cans = spots.filter((_, index) => index % 3 === 0)
+  return (
+    <>
+      <ShelfGoods spots={boxes} shape="box" />
+      <ShelfGoods spots={cans} shape="can" />
+    </>
+  )
+}
+
+function ShelfGoods({
+  spots,
+  shape,
+}: {
+  spots: { position: [number, number, number]; color: string; scale: [number, number, number] }[]
+  shape: 'box' | 'can'
+}) {
   const ref = useRef<THREE.InstancedMesh>(null)
   useLayoutEffect(() => {
     const mesh = ref.current
@@ -247,7 +264,7 @@ function Deco({ spots }: { spots: { position: [number, number, number]; color: s
     const dummy = new THREE.Object3D()
     spots.forEach((spot, index) => {
       dummy.position.set(spot.position[0], spot.position[1], spot.position[2])
-      dummy.scale.set(spot.scale[0], spot.scale[1], spot.scale[2])
+      dummy.scale.set(shape === 'can' ? spot.scale[0] * 0.7 : spot.scale[0], spot.scale[1], shape === 'can' ? spot.scale[0] * 0.7 : spot.scale[2])
       dummy.rotation.y = (index % 5) * 0.15
       dummy.updateMatrix()
       mesh.setMatrixAt(index, dummy.matrix)
@@ -255,11 +272,12 @@ function Deco({ spots }: { spots: { position: [number, number, number]; color: s
     })
     mesh.instanceMatrix.needsUpdate = true
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
-  }, [spots])
+  }, [spots, shape])
+  if (spots.length === 0) return null
   return (
     <instancedMesh ref={ref} args={[undefined, undefined, spots.length]} castShadow>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial roughness={0.7} />
+      {shape === 'can' ? <cylinderGeometry args={[0.5, 0.5, 1, 8]} /> : <boxGeometry args={[1, 1, 1]} />}
+      <meshStandardMaterial roughness={0.65} />
     </instancedMesh>
   )
 }

@@ -4,12 +4,18 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   EMPTY_ROOM_MS,
+  playerName,
+  sanitizeAccessory,
   sanitizeAction,
+  sanitizeChat,
   sanitizeCode,
   sanitizeColor,
+  sanitizeFace,
   sanitizeInput,
-  sanitizeName,
+  type AccessoryId,
   type ClientAck,
+  type ColorId,
+  type FaceId,
 } from '@cart-chaos/shared'
 import { Server } from 'socket.io'
 import { Rooms, type Room } from './room'
@@ -95,8 +101,9 @@ export function createGameServer(opts?: { autoTick?: boolean }) {
     }
 
     socket.on('create', (payload: unknown, ack?: unknown) => {
-      const name = sanitizeName((payload as { name?: unknown } | null)?.name)
-      const created = rooms.create(name)
+      const named = playerName((payload as { name?: unknown } | null)?.name)
+      if (!named.ok) return ackOf(ack, { ok: false, error: named.error })
+      const created = rooms.create(named.name, readLook(payload))
       bind(socket.id, created.room.code, created.player.id)
       void socket.join(created.room.code)
       const state = created.room.snapshot()
@@ -106,10 +113,12 @@ export function createGameServer(opts?: { autoTick?: boolean }) {
 
     socket.on('join', (payload: unknown, ack?: unknown) => {
       const body = (payload ?? {}) as { name?: unknown; code?: unknown }
+      const named = playerName(body.name)
+      if (!named.ok) return ackOf(ack, { ok: false, error: named.error })
       const code = sanitizeCode(body.code)
       const room = rooms.get(code)
       if (!room) return ackOf(ack, { ok: false, error: 'Partie introuvable' })
-      const joined = room.addPlayer(sanitizeName(body.name))
+      const joined = room.addPlayer(named.name, readLook(body))
       if (!joined.ok) return ackOf(ack, { ok: false, error: joined.error })
       bind(socket.id, room.code, joined.player.id)
       void socket.join(room.code)
@@ -133,6 +142,29 @@ export function createGameServer(opts?: { autoTick?: boolean }) {
 
     socket.on('ready', (_payload: unknown, ack?: unknown) => {
       const result = withPlayer(socket.id, (room, playerId) => room.setReady(playerId))
+      ackOf(ack, result ?? { ok: false, error: 'Pas dans un salon' })
+      const session = sessions.get(socket.id)
+      const room = session ? rooms.get(session.code) : null
+      if (room) broadcast(room)
+    })
+
+    socket.on('look', (payload: unknown, ack?: unknown) => {
+      const look = readLook(payload)
+      if (!look.colorId || !look.faceId || !look.accessory) return ackOf(ack, { ok: false, error: 'Avatar incomplet' })
+      const result = withPlayer(socket.id, (room, playerId) =>
+        room.setLook(playerId, { colorId: look.colorId as ColorId, faceId: look.faceId as FaceId, accessory: look.accessory as AccessoryId }),
+      )
+      ackOf(ack, result ?? { ok: false, error: 'Pas dans un salon' })
+      const session = sessions.get(socket.id)
+      const room = session ? rooms.get(session.code) : null
+      if (room) broadcast(room)
+    })
+
+    socket.on('chat', (payload: unknown, ack?: unknown) => {
+      if (!allow(socket.id, 'action', 8)) return ackOf(ack, { ok: false, error: 'Doucement' })
+      const text = sanitizeChat((payload as { text?: unknown } | null)?.text)
+      if (!text) return ackOf(ack, { ok: false, error: 'Message vide' })
+      const result = withPlayer(socket.id, (room, playerId) => room.say(playerId, text))
       ackOf(ack, result ?? { ok: false, error: 'Pas dans un salon' })
       const session = sessions.get(socket.id)
       const room = session ? rooms.get(session.code) : null
@@ -238,6 +270,15 @@ export function createGameServer(opts?: { autoTick?: boolean }) {
   }
 
   return { httpServer, io, rooms, tick, close }
+}
+
+function readLook(payload: unknown) {
+  const body = (payload ?? {}) as { colorId?: unknown; faceId?: unknown; accessory?: unknown }
+  return {
+    colorId: sanitizeColor(body.colorId),
+    faceId: sanitizeFace(body.faceId) ?? ('smile' as const),
+    accessory: sanitizeAccessory(body.accessory) ?? ('none' as const),
+  }
 }
 
 function serveStatic(req: http.IncomingMessage, res: http.ServerResponse) {
