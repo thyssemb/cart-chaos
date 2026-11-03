@@ -1,3 +1,4 @@
+import type { AimRay } from './aim'
 import {
   ACCESSORIES,
   CATALOG,
@@ -194,11 +195,39 @@ function clampNum(n: number) {
   return Math.max(-1, Math.min(1, n))
 }
 
-export function sanitizeAction(raw: unknown): import('./types').ActionType | null {
+export interface ActionRequest {
+  type: import('./types').ActionType
+  targetId: string | null
+  ray: AimRay | null
+}
+
+function sanitizeTarget(raw: unknown) {
+  if (typeof raw !== 'string') return null
+  return /^[a-z0-9-]{1,24}$/.test(raw) ? raw : null
+}
+
+function sanitizeRay(raw: unknown): AimRay | null {
+  if (!raw || typeof raw !== 'object') return null
+  const o = raw as Record<string, unknown>
+  const x = Number(o.x)
+  const y = Number(o.y)
+  const z = Number(o.z)
+  const dx = Number(o.dx)
+  const dy = Number(o.dy)
+  const dz = Number(o.dz)
+  const values = [x, y, z, dx, dy, dz]
+  if (!values.every((value) => Number.isFinite(value) && Math.abs(value) < 500)) return null
+  const len = Math.hypot(dx, dy, dz)
+  if (len < 0.5 || len > 1.5) return null
+  return { x, y, z, dx: dx / len, dy: dy / len, dz: dz / len }
+}
+
+export function sanitizeAction(raw: unknown): ActionRequest | null {
   if (!raw || typeof raw !== 'object') return null
   const t = (raw as { type?: unknown }).type
-  if (t === 'interact' || t === 'grab' || t === 'shove') return t
-  return null
+  if (t !== 'interact' && t !== 'grab' && t !== 'shove') return null
+  const body = raw as { targetId?: unknown; ray?: unknown }
+  return { type: t, targetId: sanitizeTarget(body.targetId), ray: sanitizeRay(body.ray) }
 }
 
 export function sanitizeEmote(raw: unknown): import('./types').EmoteId | null {

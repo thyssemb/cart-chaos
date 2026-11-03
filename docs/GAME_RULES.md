@@ -30,6 +30,10 @@ Maintenir E près d’un caddie adverse pendant 1 seconde, sans rien porter, si 
 
 Clic gauche, courte portée, devant soi, recharge 0,9 s. Petite poussée, l’objet porté tombe, et un article du caddie peut tomber.
 
+## Visée
+
+Ramasser vise le centre de la caméra. Le produit surligné en jaune est le seul qui part : le serveur revérifie qu’il est à portée, devant le regard, et pas caché par un autre rayon. La molette change de cible quand plusieurs produits sont proches. Déposer, voler et encaisser restent les mêmes gestes.
+
 ## Caisse
 
 Pousser le caddie dans une des trois zones turquoise et appuyer sur E. Le serveur valide le contenu (et l’objet porté).
@@ -40,4 +44,4 @@ Quand il reste 90 secondes, un seul PQ doré apparaît dans la zone promo. Il se
 
 ## Phases
 
-Le salon est une salle de pause en 3D, séparée du magasin. On s’y déplace, on se met prêt au tableau, on change de look au miroir, et l’hôte ouvre la porte quand tout le monde est prêt. Le compte à rebours de 3 s reste dans cette salle, puis le groupe entre dans le supermarché. Manche 3 min → résultats. Rejouer relance dans le magasin. Retour au salon ramène tout le groupe dans la salle de pause. Rejouer et le retour remettent les scores, les listes, les produits et les caddies à zéro. Une déconnexion laisse le salon en place ; la reconnexion du même onglet reprend le joueur pendant 45 secondes.
+Le salon est une petite place ouverte, séparée du magasin. On s’y déplace, on se met prêt au tableau (manche de 3 minutes), on change de look au miroir, et l’hôte lance depuis la cloche quand tout le monde est prêt. Le compte à rebours de 3 s reste sur la place, puis le groupe entre dans le supermarché. Manche 3 min → résultats. Rejouer relance dans le magasin. Retour au salon ramène tout le groupe sur la place. Rejouer et le retour remettent les scores, les listes, les produits et les caddies à zéro. Une déconnexion laisse le salon en place ; la reconnexion du même onglet reprend le joueur pendant 45 secondes.

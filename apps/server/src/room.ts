@@ -26,7 +26,9 @@ import {
   SPAWNS,
   STEAL_MS,
   STEAL_RANGE,
+  AIM_REACH,
   cartAnchor,
+  cameraPlausible,
   checkoutReady,
   collides,
   depenetrate,
@@ -37,10 +39,12 @@ import {
   pointsForItem,
   rollList,
   stealBanner,
+  selectAim,
   stepAvatar,
   zeroInput,
   type AccessoryId,
   type ActionType,
+  type AimRay,
   type ColorId,
   type EmoteId,
   type FaceId,
@@ -306,13 +310,17 @@ export class Room {
     player.lastInputAt = Date.now()
   }
 
-  handleAction(playerId: string, type: ActionType): { ok: boolean; error?: string } {
+  handleAction(
+    playerId: string,
+    type: ActionType,
+    aim?: { targetId?: string | null; ray?: AimRay | null } | null,
+  ): { ok: boolean; error?: string } {
     const player = this.players.get(playerId)
     if (!player?.connected) return { ok: false, error: 'Joueur absent' }
     if (this.phase !== 'playing') return { ok: false, error: 'Pas maintenant' }
     if (type === 'grab') return this.toggleGrab(player)
     if (type === 'shove') return this.shove(player)
-    return this.interact(player)
+    return this.interact(player, aim ?? null)
   }
 
   start(playerId: string) {
@@ -746,7 +754,7 @@ export class Room {
     this.pushSfx('steal', player.x, player.z)
   }
 
-  private interact(player: Player): { ok: boolean; error?: string } {
+  private interact(player: Player, aim?: { targetId?: string | null; ray?: AimRay | null } | null): { ok: boolean; error?: string } {
     const cart = this.carts.get(player.id)
     if (!cart) return { ok: false, error: 'Pas de caddie' }
     const zone = checkoutReady(player.x, player.z, cart.x, cart.z)
@@ -763,8 +771,11 @@ export class Room {
       this.pushSfx('drop', player.x, player.z)
       return { ok: true }
     }
-    const loose = this.nearestLoose(player)
-    if (loose) return this.pickup(player, loose)
+    if (aim?.targetId) {
+      const product = this.products.get(aim.targetId)
+      if (!product || !aim.ray || !this.aimedProduct(player, product, aim.ray)) return { ok: false, error: 'Pas à portée' }
+      return this.pickup(player, product)
+    }
     if (this.nearestEnemyCart(player)) return { ok: true }
     return { ok: false, error: 'Rien à portée' }
   }
@@ -907,19 +918,15 @@ export class Room {
     return { ok: true }
   }
 
-  private nearestLoose(player: Player) {
-    let best: Product | null = null
-    // The cart stops the body short of the shelf, and the package extends in front of its center.
-    let bestDist = INTERACT_RANGE + 0.75
-    for (const product of this.products.values()) {
-      if (product.state !== 'shelf' && product.state !== 'ground') continue
-      const dist = Math.hypot(player.x - product.x, player.z - product.z)
-      if (dist < bestDist) {
-        best = product
-        bestDist = dist
-      }
+  private aimedProduct(player: Player, product: Product, ray: AimRay) {
+    if (product.state !== 'shelf' && product.state !== 'ground') return false
+    if (!cameraPlausible(player.x, player.y, player.z, ray)) return false
+    const loose: Product[] = []
+    for (const item of this.products.values()) {
+      if (item.state === 'shelf' || item.state === 'ground') loose.push(item)
     }
-    return best
+    const pick = selectAim(ray, player.x, player.z, loose, AIM_REACH + 0.2)
+    return pick.ids.includes(product.id)
   }
 
   private nearestEnemyCart(player: Player) {

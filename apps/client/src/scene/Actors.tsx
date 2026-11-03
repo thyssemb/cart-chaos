@@ -1,12 +1,12 @@
-import { CATALOG, colorById, type AccessoryId, type FaceId, type ProductType } from '@cart-chaos/shared'
+import { CATALOG, PRODUCT_HEIGHT, colorById, type AccessoryId, type FaceId, type ProductType } from '@cart-chaos/shared'
 import { useEffect, useMemo, useRef, type MutableRefObject } from 'react'
-import type { Group, Mesh, Sprite } from 'three'
+import { BackSide, type Group, type Mesh, type Sprite } from 'three'
 import { useFrame } from '@react-three/fiber'
 import { useGame } from '../store'
 import { FoodProduct, isPackedProduct } from './foodPack'
 import { CartoonCart } from './shoppingCart'
 import { makeBasket, makeBubble, makeFace, makeLabel, makeOveralls } from './textures'
-import { views } from '../views'
+import { aim, views } from '../views'
 
 const idle: (typeof views.players extends Map<string, infer V> ? V : never) = {
   x: 0,
@@ -442,6 +442,8 @@ function ProceduralCart({ color, basket, wheelsRef }: { color: string; basket: R
 
 function ProductModel({ id }: { id: string }) {
   const group = useRef<Group>(null)
+  const shell = useRef<Mesh>(null)
+  const wire = useRef<Mesh>(null)
   const type = useGame((state) => state.room?.products.find((product) => product.id === id)?.type)
   useFrame(() => {
     const pose = views.products.get(id)
@@ -451,11 +453,23 @@ function ProductModel({ id }: { id: string }) {
     group.current.rotation.y = pose.yaw
     const scale = pose.scale ?? 1
     group.current.scale.set(scale, scale, scale)
+    const aimed = pose.visible && aim.id === id
+    if (shell.current) shell.current.visible = aimed
+    if (wire.current) wire.current.visible = aimed
   })
   if (!type) return null
+  const height = PRODUCT_HEIGHT[type] + 0.08
   return (
     <group ref={group}>
       <ProductShape type={type} />
+      <mesh ref={shell} visible={false} scale={1.12}>
+        <boxGeometry args={[0.5, height, 0.5]} />
+        <meshBasicMaterial color="#ffe14a" side={BackSide} toneMapped={false} depthWrite={false} />
+      </mesh>
+      <mesh ref={wire} visible={false}>
+        <boxGeometry args={[0.52, height, 0.52]} />
+        <meshBasicMaterial color="#ffe56a" wireframe toneMapped={false} />
+      </mesh>
     </group>
   )
 }

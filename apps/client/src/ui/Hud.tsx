@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react'
 import { playEnd, playUi, playVictory } from '../audio'
 import { sendBack, sendLeave, sendRematch } from '../net'
 import { useGame } from '../store'
+import { aim } from '../views'
 
 export function Hud() {
   const room = useGame((state) => state.room)
@@ -130,6 +131,8 @@ export function Hud() {
           {freshFlash ?? scoreNote?.text}
         </div>
       )}
+      {room.phase === 'playing' && !paused && <AimReticle />}
+
       {me.stealing > 0 && (
         <div className="absolute bottom-28 left-1/2 w-48 -translate-x-1/2">
           <div className="mb-1 text-center text-xs font-bold">VOL…</div>
@@ -175,17 +178,38 @@ function prompts(
     return { e: 'Déposer dans le caddie', f: release }
   }
   if (me.carryingId) return { e: 'Lâcher', f: release }
-  for (const product of room.products) {
-    if ((product.state === 'shelf' || product.state === 'ground') && Math.hypot(me.x - product.x, me.z - product.z) <= INTERACT_RANGE) {
-      return { e: 'Ramasser', f: release }
-    }
-  }
+  if (aim.id) return { e: `Ramasser ${aim.name}`, f: release }
   for (const other of room.carts) {
     if (other.ownerId !== me.id && other.itemIds.length > 0 && Math.hypot(me.x - other.x, me.z - other.z) <= STEAL_RANGE) {
       return { e: 'Voler (maintenir)', f: release }
     }
   }
   return { e: 'Ramasser', f: release }
+}
+
+function AimReticle() {
+  const [target, setTarget] = useState<{ id: string | null; name: string; choices: number }>({ id: null, name: '', choices: 0 })
+  useEffect(() => {
+    let frame = 0
+    const tick = () => {
+      const next = { id: aim.id, name: aim.name, choices: aim.ids.length }
+      setTarget((prev) => (prev.id === next.id && prev.name === next.name && prev.choices === next.choices ? prev : next))
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [])
+  return (
+    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+      <div className="mx-auto h-4 w-4 rounded-full border-2 border-[#ffe14a] shadow-[0_0_0_1px_rgba(20,20,20,0.35)]" />
+      {target.id && (
+        <div className="mt-2 whitespace-nowrap text-center">
+          <div className="rounded-full bg-ink/80 px-3 py-1 text-sm font-bold text-[#ffe14a]">E — Ramasser · {target.name}</div>
+          {target.choices > 1 && <div className="mt-1 text-[11px] font-bold text-cream/80">Molette · autre produit</div>}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function Pause() {

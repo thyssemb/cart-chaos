@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { CATALOG, MATCH_MS, type ProductType } from '@cart-chaos/shared'
+import { CATALOG, MATCH_MS, type AimRay, type ProductType } from '@cart-chaos/shared'
 import { Room } from '../src/room'
+
+function lookFrom(player: { x: number; y: number; z: number }, product: { x: number; y: number; z: number }): AimRay {
+  const dx = product.x - player.x
+  const dz = product.z - player.z
+  const len = Math.hypot(dx, dz) || 1
+  const x = player.x - (dx / len) * 1.7 + 0.3
+  const z = player.z - (dz / len) * 1.7
+  const y = player.y + 2.05
+  const vx = product.x - x
+  const vy = product.y - y
+  const vz = product.z - z
+  const mag = Math.hypot(vx, vy, vz) || 1
+  return { x, y, z, dx: vx / mag, dy: vy / mag, dz: vz / mag }
+}
 
 function readyAll(room: Room) {
   for (const player of room.players.values()) {
@@ -94,8 +108,8 @@ describe('produits, vol, caisse', () => {
     const { room, a } = pair()
     const milk = [...room.products.values()].find((product) => product.type === 'milk')!
     a.x = milk.x
-    a.z = milk.z + 0.4
-    expect(room.handleAction(a.id, 'interact').ok).toBe(true)
+    a.z = milk.z - 1.25
+    expect(room.handleAction(a.id, 'interact', { targetId: milk.id, ray: lookFrom(a, milk) }).ok).toBe(true)
     expect(a.carryingId).toBe(milk.id)
     expect([...room.products.values()].filter((product) => product.id === milk.id)).toHaveLength(1)
     const cart = room.carts.get(a.id)!
@@ -229,5 +243,26 @@ describe('produits, vol, caisse', () => {
     expect(b.carryingId).toBeNull()
     expect(a.shoves).toBe(1)
     expect(room.handleAction(a.id, 'shove').error).toBe('Pas encore')
+  })
+
+  it('ramasse le produit visé et refuse un produit masqué ou hors visée', () => {
+    const { room, a } = pair()
+    const milk = [...room.products.values()].find((product) => product.id === 'milk-1')!
+    const bread = [...room.products.values()].find((product) => product.id === 'bread-1')!
+    a.x = milk.x
+    a.z = milk.z - 1.25
+    const ray = lookFrom(a, milk)
+    expect(room.handleAction(a.id, 'interact', { targetId: bread.id, ray }).ok).toBe(false)
+    expect(a.carryingId).toBeNull()
+    expect(room.handleAction(a.id, 'interact', { targetId: milk.id, ray }).ok).toBe(true)
+    expect(a.carryingId).toBe(milk.id)
+
+    a.carryingId = null
+    milk.state = 'shelf'
+    milk.ownerId = null
+    a.x = bread.x - 2.3
+    a.z = bread.z
+    expect(room.handleAction(a.id, 'interact', { targetId: bread.id, ray: lookFrom(a, bread) }).ok).toBe(false)
+    expect(a.carryingId).toBeNull()
   })
 })

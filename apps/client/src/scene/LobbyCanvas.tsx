@@ -1,4 +1,4 @@
-import { LOBBY, LOBBY_OBSTACLES, lobbySpotAt, stepAvatar } from '@cart-chaos/shared'
+import { LOBBY, LOBBY_HEIGHTS, LOBBY_OBSTACLES, lobbySpotAt, stepAvatar } from '@cart-chaos/shared'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
@@ -7,11 +7,11 @@ import { sendEmote, sendInput, sendReady, sendStart } from '../net'
 import { useGame } from '../store'
 import { control, debug, lerpAngle, lobbyUi, patchLobbyUi, readInput, requestLobbyCopy, views } from '../views'
 import { Actors } from './Actors'
-import { BreakRoom } from './BreakRoom'
+import { Plaza } from './Plaza'
 import { REST_DISTANCE, REST_HEIGHT, REST_SIDE, applyMouseLook, cameraFrame, clampPitch, pullCamera, resolveArmScale } from './cameraRig'
 
-const LOBBY_CEILING = 3.45
-const LOBBY_TOP = 2.05
+const LOBBY_CEILING = 16
+const LOBBY_TOP = 1.15
 
 export function LobbyCanvas() {
   return (
@@ -19,12 +19,12 @@ export function LobbyCanvas() {
       shadows
       dpr={[1, 1.25]}
       style={{ position: 'absolute', inset: '0', width: '100%', height: '100%' }}
-      camera={{ fov: 52, position: [0, 2.4, -6], near: 0.1, far: 40 }}
+      camera={{ fov: 52, position: [0, 2.4, -6], near: 0.1, far: 240 }}
       gl={{ antialias: true, toneMapping: THREE.NoToneMapping }}
     >
-      <color attach="background" args={['#f6c9a0']} />
+      <color attach="background" args={['#4a2260']} />
       <LobbyLights />
-      <BreakRoom />
+      <Plaza />
       <Actors playersOnly />
       <LobbySimulation />
       <LobbyCamera />
@@ -36,21 +36,21 @@ export function LobbyCanvas() {
 function LobbyLights() {
   return (
     <>
-      <ambientLight intensity={0.62} color="#fff0dc" />
-      <hemisphereLight args={['#fff4e2', '#e7b892', 0.48]} />
+      <ambientLight intensity={0.42} color="#ffd0b8" />
+      <hemisphereLight args={['#ffb7c8', '#e7b07a', 0.62]} />
       <directionalLight
-        position={[4, 8, 2]}
-        intensity={0.85}
-        color="#ffe2b0"
+        position={[14, 11, -8]}
+        intensity={1.35}
+        color="#ffc27a"
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
         shadow-camera-near={0.5}
-        shadow-camera-far={24}
-        shadow-camera-left={-10}
-        shadow-camera-right={10}
-        shadow-camera-top={10}
-        shadow-camera-bottom={-10}
+        shadow-camera-far={48}
+        shadow-camera-left={-18}
+        shadow-camera-right={18}
+        shadow-camera-top={18}
+        shadow-camera-bottom={-18}
       />
     </>
   )
@@ -267,6 +267,14 @@ function activateSpot() {
     requestLobbyCopy()
     return
   }
+  if (spot === 'vend') {
+    state.setFlash('En panne. Le supermarché, lui, ouvre bientôt.')
+    return
+  }
+  if (spot === 'hoop') {
+    state.setFlash('Le panier est décoratif. La course se joue au supermarché.')
+    return
+  }
   if (spot === 'door') {
     const online = room.players.filter((player) => player.connected)
     const hostOnline = online.some((player) => player.host)
@@ -307,7 +315,7 @@ function LobbyCamera() {
       height: REST_HEIGHT + (sprinting ? 0.12 * motion : 0),
       side: REST_SIDE,
     }
-    const resolved = resolveArmScale(input, LOBBY_OBSTACLES, LOBBY, LOBBY_CEILING, LOBBY_TOP)
+    const resolved = resolveArmScale(input, LOBBY_OBSTACLES, LOBBY, LOBBY_CEILING, LOBBY_TOP, LOBBY_HEIGHTS)
     const follow = 1 - Math.exp(-9 * delta)
     if (!ready.current) scale.current = resolved
     else scale.current += (resolved - scale.current) * follow
@@ -321,7 +329,19 @@ function LobbyCamera() {
     camera.position.x += (frame.x - camera.position.x) * k
     camera.position.y += (frame.y - camera.position.y) * k
     camera.position.z += (frame.z - camera.position.z) * k
-    const safe = pullCamera(px, py, pz, camera.position.x, camera.position.y, camera.position.z, LOBBY_OBSTACLES, LOBBY, LOBBY_CEILING, LOBBY_TOP)
+    const safe = pullCamera(
+      px,
+      py,
+      pz,
+      camera.position.x,
+      camera.position.y,
+      camera.position.z,
+      LOBBY_OBSTACLES,
+      LOBBY,
+      LOBBY_CEILING,
+      LOBBY_TOP,
+      LOBBY_HEIGHTS,
+    )
     camera.position.set(safe.x, safe.y, safe.z)
     look.current.set(frame.lookX, frame.lookY, frame.lookZ)
     camera.lookAt(look.current)

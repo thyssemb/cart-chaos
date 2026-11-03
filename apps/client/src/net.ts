@@ -2,6 +2,7 @@ import type { ActionType, ClientAck, PublicRoom } from '@cart-chaos/shared'
 import { io, type Socket } from 'socket.io-client'
 import { ensureAudio, playSfx } from './audio'
 import { loadSession, useGame } from './store'
+import { aim } from './views'
 
 export const socket: Socket = io({
   autoConnect: true,
@@ -132,8 +133,19 @@ export async function sendEmote(emote: 'wave' | 'dance') {
 export function sendAction(type: ActionType) {
   const state = useGame.getState()
   if (!state.room || state.room.phase !== 'playing' || state.paused) return
-  socket.emit('action', { type }, (response: ClientAck) => {
-    if (response && !response.ok && response.error && response.error !== 'Rien à portée' && response.error !== 'Pas encore') {
+  const payload =
+    type === 'interact'
+      ? { type, targetId: aim.id, ray: aim.ray }
+      : { type }
+  socket.emit('action', payload, (response: ClientAck) => {
+    if (
+      response &&
+      !response.ok &&
+      response.error &&
+      response.error !== 'Rien à portée' &&
+      response.error !== 'Pas à portée' &&
+      response.error !== 'Pas encore'
+    ) {
       useGame.getState().setFlash(response.error)
     }
   })

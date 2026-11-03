@@ -17,13 +17,13 @@ En développement, le client est sur `http://localhost:5173` et proxyfie `/socke
 | `look` | `{ colorId, faceId, accessory }` | ack, salon ou résultats |
 | `chat` | `{ text }` | ack, salon seulement, 80 caractères, 3 messages / 5 s |
 | `color` | `{ colorId }` | ack |
-| `start` | | ack, hôte, joueurs connectés prêts. Depuis le salon, le compte à rebours se passe dans la salle de pause, puis tout le monde apparaît dans le magasin |
+| `start` | | ack, hôte, joueurs connectés prêts. Depuis le salon, le compte à rebours se passe sur la place, puis tout le monde apparaît dans le magasin |
 | `rematch` | | ack, même règle, compte à rebours déjà dans le magasin |
-| `back` | | ack, hôte, depuis les résultats : tout le groupe revient dans la salle de pause |
+| `back` | | ack, hôte, depuis les résultats : tout le groupe revient sur la place |
 | `emote` | `{ emote: wave \| dance }` | ack, salon seulement |
 | `leave` | | ack |
 | `input` | `{ seq, forward, strafe, yaw, sprint, jump, interactHeld }` | sans ack, plafond 40/s. `yaw` est le cap horizontal de la caméra. Le salon et la manche utilisent le même pas |
-| `action` | `{ type: interact \| grab \| shove }` | ack, plafond 16/s |
+| `action` | `{ type: interact \| grab \| shove, targetId?, ray? }` | ack, plafond 16/s. Pour ramasser, `targetId` est le produit surligné et `ray` le regard. Le serveur ne prend que si ce produit est devant ce regard, à portée, et pas masqué |
 
 Les pseudos font 3 à 16 caractères après nettoyage. Les codes salon font 4 caractères. Les couleurs, visages et accessoires inconnus sont ignorés ou refusés. Le chat du salon coupe les balises, refuse le vide et bloque au-delà de 3 messages en 5 secondes. Un salon plein (6) est refusé. La manche ne démarre que si chaque joueur connecté est prêt.
 

@@ -4,6 +4,7 @@ import {
   PRODUCT_HEIGHT,
   OBSTACLES,
   cartAnchor,
+  checkoutReady,
   discObstacle,
   slotWorld,
   stepAvatar,
@@ -15,6 +16,8 @@ import * as THREE from 'three'
 import { footstep, setListener, setWheel } from '../audio'
 import { sendAction, sendInput } from '../net'
 import { useGame } from '../store'
+import { aim, control, debug, lerpAngle, readInput, views } from '../views'
+import { refreshAim } from './aim'
 import { Actors, DemoCrew } from './Actors'
 import { shelfFacing } from './foodPack'
 import { Supermarket } from './Supermarket'
@@ -28,7 +31,6 @@ import {
   pullCamera,
   resolveArmScale,
 } from './cameraRig'
-import { control, debug, lerpAngle, readInput, views } from '../views'
 
 class Guard extends Component<{ children: ReactNode; fallback: ReactNode }, { bad: boolean }> {
   state = { bad: false }
@@ -182,15 +184,23 @@ function Simulation() {
     const click = (event: MouseEvent) => {
       if (event.button === 0 && document.pointerLockElement) sendAction('shove')
     }
+    const wheel = (event: WheelEvent) => {
+      if (!document.pointerLockElement || useGame.getState().paused) return
+      event.preventDefault()
+      if (event.deltaY === 0) return
+      aim.wheel += event.deltaY > 0 ? 1 : -1
+    }
     window.addEventListener('keydown', down)
     window.addEventListener('keyup', up)
     window.addEventListener('mousemove', move)
     window.addEventListener('mousedown', click)
+    window.addEventListener('wheel', wheel, { passive: false })
     return () => {
       window.removeEventListener('keydown', down)
       window.removeEventListener('keyup', up)
       window.removeEventListener('mousemove', move)
       window.removeEventListener('mousedown', click)
+      window.removeEventListener('wheel', wheel)
       control.keys.clear()
       control.interactHeld = false
     }
@@ -424,6 +434,13 @@ function CameraRig() {
     camera.position.set(safe.x, safe.y, safe.z)
     look.current.set(frame.lookX, frame.lookY, frame.lookZ)
     camera.lookAt(look.current)
+    const me = game.room?.players.find((player) => player.id === meId)
+    const loose = (game.room?.products ?? []).filter((product) => product.state === 'shelf' || product.state === 'ground')
+    const cart = me ? game.room?.carts.find((item) => item.ownerId === me.id) : undefined
+    const zone = me && cart ? checkoutReady(me.x, me.z, cart.x, cart.z) : null
+    const cashing = Boolean(zone && ((cart?.itemIds.length ?? 0) > 0 || me?.carryingId))
+    const aiming = Boolean(me && game.room?.phase === 'playing' && !game.paused && !me.carryingId && !cashing)
+    refreshAim(camera, me?.x ?? px, me?.z ?? pz, loose, aiming)
     if (import.meta.env.DEV) {
       debug.camera = {
         x: safe.x,

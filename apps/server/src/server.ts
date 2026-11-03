@@ -244,7 +244,7 @@ export function createGameServer(opts?: { autoTick?: boolean }) {
       if (!allow(socket.id, 'action', 16)) return ackOf(ack, { ok: false, error: 'Doucement' })
       const action = sanitizeAction(payload)
       if (!action) return ackOf(ack, { ok: false, error: 'Action inconnue' })
-      const result = withPlayer(socket.id, (room, playerId) => room.handleAction(playerId, action))
+      const result = withPlayer(socket.id, (room, playerId) => room.handleAction(playerId, action.type, action))
       ackOf(ack, result ?? { ok: false, error: 'Pas dans un salon' })
     })
 

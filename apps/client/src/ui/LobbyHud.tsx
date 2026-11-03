@@ -87,7 +87,7 @@ export function LobbyHud() {
   return (
     <div className="pointer-events-none absolute inset-0 text-cream">
       <div className="absolute left-4 top-4 rounded-2xl bg-ink/70 px-4 py-2 shadow-xl">
-        <div className="text-[10px] tracking-[0.25em] text-gold">SALLE DE PAUSE</div>
+        <div className="text-[10px] tracking-[0.25em] text-gold">PLACE</div>
         <div className="text-2xl font-bold tracking-widest">{room.code}</div>
       </div>
       <div className="absolute right-4 top-4 flex gap-2">
@@ -168,9 +168,11 @@ function promptFor(
   room: NonNullable<ReturnType<typeof useGame.getState>['room']>,
 ) {
   if (room.phase !== 'lobby' || !spot) return null
-  if (spot === 'ready') return me.ready ? 'E · Pas prêt' : 'E · Prêt'
+  if (spot === 'ready') return me.ready ? 'E · Pas prêt' : 'E · Prêt · Manche 3 min'
   if (spot === 'kiosk') return 'E · Personnaliser'
   if (spot === 'code') return 'E · Copier le code'
+  if (spot === 'vend') return 'E · Distributeur'
+  if (spot === 'hoop') return 'E · Panier'
   const online = room.players.filter((player) => player.connected)
   const hostOnline = online.some((player) => player.host)
   if (hostOnline && !me.host) return 'L’hôte ouvre le magasin'

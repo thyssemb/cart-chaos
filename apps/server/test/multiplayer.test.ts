@@ -88,8 +88,20 @@ describe('socket multijoueur', () => {
     const milk = [...room.products.values()].find((product) => product.type === 'milk')!
     const kevinPlayer = room.players.get(created.playerId)!
     kevinPlayer.x = milk.x
-    kevinPlayer.z = milk.z
-    const picked = await emit<{ ok: boolean }>(kevin, 'action', { type: 'interact' })
+    kevinPlayer.z = milk.z - 1.25
+    const dx = milk.x - kevinPlayer.x
+    const dz = milk.z - kevinPlayer.z
+    const flat = Math.hypot(dx, dz) || 1
+    const origin = { x: kevinPlayer.x - (dx / flat) * 1.7, y: 2.05, z: kevinPlayer.z - (dz / flat) * 1.7 }
+    const vx = milk.x - origin.x
+    const vy = milk.y - origin.y
+    const vz = milk.z - origin.z
+    const mag = Math.hypot(vx, vy, vz) || 1
+    const picked = await emit<{ ok: boolean }>(kevin, 'action', {
+      type: 'interact',
+      targetId: milk.id,
+      ray: { ...origin, dx: vx / mag, dy: vy / mag, dz: vz / mag },
+    })
     expect(picked.ok).toBe(true)
     expect(kevinPlayer.carryingId).toBe(milk.id)
 

@@ -1,3 +1,4 @@
+export * from './aim'
 export * from './constants'
 export * from './lobby'
 export * from './map'

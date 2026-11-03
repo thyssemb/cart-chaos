@@ -33,6 +33,16 @@ export interface ProductPose {
   beacon: boolean
 }
 
+export const aim = {
+  id: null as string | null,
+  name: '',
+  ids: [] as string[],
+  pin: null as string | null,
+  ray: null as null | { x: number; y: number; z: number; dx: number; dy: number; dz: number },
+  wheel: 0,
+  applied: 0,
+}
+
 export const views = {
   players: new Map<string, Pose>(),
   carts: new Map<string, CartPose>(),
@@ -116,10 +126,11 @@ export function readInput() {
 }
 
 if (import.meta.env?.DEV && typeof window !== 'undefined') {
-  ;(window as Window & { __cart?: { control: typeof control; views: typeof views; debug: typeof debug } }).__cart = {
+  ;(window as Window & { __cart?: { control: typeof control; views: typeof views; debug: typeof debug; aim: typeof aim } }).__cart = {
     control,
     views,
     debug,
+    aim,
   }
 }
 

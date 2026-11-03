@@ -138,12 +138,21 @@ export function roomBox(bounds: PlanarBounds = STORE, ceiling = CEILING_Y): Came
   }
 }
 
-export function shelfBoxes(obstacles: Obstacle[], radius = CAMERA_RADIUS, top = SHELF_TOP): CameraBox[] {
+function boxTop(id: string, fallback: number, heights?: Readonly<Record<string, number>>) {
+  return heights?.[id] ?? SOLID_TOP.get(id) ?? fallback
+}
+
+export function shelfBoxes(
+  obstacles: Obstacle[],
+  radius = CAMERA_RADIUS,
+  top = SHELF_TOP,
+  heights?: Readonly<Record<string, number>>,
+): CameraBox[] {
   return obstacles.map((obstacle) => ({
     minX: obstacle.minX - radius,
     maxX: obstacle.maxX + radius,
     minY: -radius,
-    maxY: (SOLID_TOP.get(obstacle.id) ?? top) + radius,
+    maxY: boxTop(obstacle.id, top, heights) + radius,
     minZ: obstacle.minZ - radius,
     maxZ: obstacle.maxZ + radius,
   }))
@@ -220,9 +229,10 @@ export function resolveArmScale(
   bounds: PlanarBounds = STORE,
   ceiling = CEILING_Y,
   shelfTop = SHELF_TOP,
+  heights?: Readonly<Record<string, number>>,
 ) {
   const room = roomBox(bounds, ceiling)
-  const shelves = shelfBoxes(obstacles, CAMERA_RADIUS, shelfTop)
+  const shelves = shelfBoxes(obstacles, CAMERA_RADIUS, shelfTop, heights)
   const ox = input.x
   const oy = input.y + PIVOT_HEIGHT
   const oz = input.z
@@ -249,8 +259,9 @@ export function placeCamera(
   bounds: PlanarBounds = STORE,
   ceiling = CEILING_Y,
   shelfTop = SHELF_TOP,
+  heights?: Readonly<Record<string, number>>,
 ) {
-  const scale = resolveArmScale(input, obstacles, bounds, ceiling, shelfTop)
+  const scale = resolveArmScale(input, obstacles, bounds, ceiling, shelfTop, heights)
   return { scale, frame: cameraFrame(input, scale) }
 }
 
@@ -266,9 +277,10 @@ export function pullCamera(
   bounds: PlanarBounds = STORE,
   ceiling = CEILING_Y,
   shelfTop = SHELF_TOP,
+  heights?: Readonly<Record<string, number>>,
 ) {
   const room = roomBox(bounds, ceiling)
-  const shelves = shelfBoxes(obstacles, CAMERA_RADIUS, shelfTop)
+  const shelves = shelfBoxes(obstacles, CAMERA_RADIUS, shelfTop, heights)
   const ox = x
   const oy = y + PIVOT_HEIGHT
   const oz = z
