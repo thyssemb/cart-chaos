@@ -142,7 +142,7 @@ export function Hud() {
       <section className="absolute bottom-4 left-4 rounded-2xl bg-panel/85 px-4 py-3 text-sm shadow-xl">
         <div>E · {prompt.e}</div>
         <div>F · {prompt.f}</div>
-        <div className="mt-1 text-cream/70">ZQSD, WASD ou flèches · Shift sprinter · Espace sauter</div>
+        <div className="mt-1 text-cream/70">ZQSD, WASD ou flèches · Shift sprint · Espace sauter</div>
       </section>
       <section className="absolute bottom-4 right-4 w-52 rounded-2xl bg-panel/85 px-4 py-3 shadow-xl">
         <div className="flex items-center justify-between text-sm font-bold">

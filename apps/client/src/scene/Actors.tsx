@@ -110,9 +110,9 @@ export function CharacterModel({ id, colorId, name }: { id: string; colorId?: st
     prevGround.current = grounded
     land.current = Math.max(0, land.current - dt)
     const speed = pose.speed
-    const running = speed > 5.5
+    const running = speed > 9.4
     const pushing = pose.holding
-    if (grounded && speed > 0.35) phase.current += dt * (pose.celebrate ? 8 : running ? 11 : 7.2)
+    if (grounded && speed > 0.45) phase.current += dt * (pose.celebrate ? 8 : 1.6 + speed * 0.85)
     const blend = 1 - Math.exp(-11 * dt)
     const targetSwing = grounded && speed > 0.3 && !pose.celebrate ? Math.sin(phase.current) * (running ? 0.9 : 0.55) : 0
     swing.current += (targetSwing - swing.current) * blend

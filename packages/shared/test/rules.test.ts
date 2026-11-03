@@ -103,6 +103,12 @@ describe('carte et déplacement', () => {
     expect(Math.hypot(body.vx, body.vz)).toBeLessThan(CONTROLLER.walkSpeed * 0.75)
     for (let i = 0; i < 14; i += 1) stepAvatar(body, input, 0.05, OBSTACLES, { holding: false, slow: false })
     expect(Math.hypot(body.vx, body.vz)).toBeGreaterThan(CONTROLLER.walkSpeed * 0.8)
+    const reverse: Body = { x: -3.2, y: 0, z: -6.2, vx: 0, vy: 0, vz: 6, yaw: 0, grounded: true }
+    stepAvatar(reverse, { ...zeroInput(0), forward: -1 }, 0.05, OBSTACLES, { holding: false, slow: false })
+    expect(reverse.vz).toBeLessThan(2)
+    expect(Math.abs(reverse.yaw)).toBeGreaterThan(0.2)
+    expect(Math.abs(reverse.yaw)).toBeLessThan(1.2)
+    expect(CONTROLLER.sprintSpeed / CONTROLLER.walkSpeed).toBeCloseTo(1.6)
     expect(applyKeyTurn(0, 1, 0.05)).toBeCloseTo(-CONTROLLER.keyTurnSpeed * 0.05)
     expect(applyKeyTurn(0, -1, 0.05)).toBeCloseTo(CONTROLLER.keyTurnSpeed * 0.05)
     expect(turnToward(0, Math.PI, 0.4)).toBeCloseTo(0.4)

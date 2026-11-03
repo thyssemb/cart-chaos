@@ -6,7 +6,6 @@ import {
   collides,
   discObstacle,
   slotWorld,
-  applyKeyTurn,
   stepAvatar,
 } from '@cart-chaos/shared'
 import { Physics } from '@react-three/rapier'
@@ -18,7 +17,7 @@ import { sendAction, sendInput } from '../net'
 import { useGame } from '../store'
 import { Actors, DemoCrew } from './Actors'
 import { Supermarket } from './Supermarket'
-import { control, lerpAngle, readInput, readTurn, views } from '../views'
+import { control, lerpAngle, readInput, views } from '../views'
 
 class Guard extends Component<{ children: ReactNode; fallback: ReactNode }, { bad: boolean }> {
   state = { bad: false }
@@ -184,9 +183,6 @@ function Simulation() {
     const me = room.players.find((player) => player.id === meId)
     if (!me) return
     const playing = room.phase === 'playing' && !state.paused
-    if (!state.paused && (room.phase === 'playing' || room.phase === 'countdown')) {
-      control.yaw = applyKeyTurn(control.yaw, readTurn(), step)
-    }
     const liveInput = readInput()
     const input = playing
       ? liveInput
@@ -367,7 +363,7 @@ function CameraRig() {
     const py = pose?.y ?? 0
     const pz = pose?.z ?? -7
     const motion = game.settings.camera
-    const sprinting = (pose?.speed ?? 0) > 5.6 && motion > 0.05
+    const sprinting = (pose?.speed ?? 0) > 9.4 && motion > 0.05
     const blocks = OBSTACLES.filter((obstacle) => !obstacle.id.startsWith('c'))
     let dist = 5.35 + (sprinting ? 0.45 * motion : 0)
     let side = 1.05

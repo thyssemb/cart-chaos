@@ -9,21 +9,21 @@ export const PLAYER_RADIUS = 0.36
 export const CART_RADIUS = 0.42
 export const CART_FOLLOW = 1.08
 export const CONTROLLER = {
-  walkSpeed: 4.6,
-  sprintSpeed: 7.25,
-  acceleration: 11,
-  deceleration: 16,
-  rotationSpeed: 8.5,
+  walkSpeed: 7.8,
+  sprintSpeed: 12.48,
+  acceleration: 18,
+  deceleration: 24,
+  rotationSpeed: 11,
   keyTurnSpeed: 2.8,
   jumpImpulse: 6.35,
-  airControl: 0.42,
+  airControl: 0.55,
   gravityScale: 1,
   coyote: 0.1,
   jumpLock: 0.22,
 } as const
 export const MOVE_SPEED = CONTROLLER.walkSpeed
 export const SPRINT_SPEED = CONTROLLER.sprintSpeed
-export const CART_SPEED_MUL = 0.82
+export const CART_SPEED_MUL = 0.94
 export const SLOW_MUL = 0.6
 export const JUMP_V = CONTROLLER.jumpImpulse
 export const GRAVITY = 16

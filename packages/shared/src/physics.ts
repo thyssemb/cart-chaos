@@ -118,17 +118,20 @@ export function stepAvatar(
     wz /= len
   }
   const moving = len > 0.08
-  const sprinting = input.sprint && f > 0.2
+  const sprinting = input.sprint && moving
   const speed =
     (sprinting ? CONTROLLER.sprintSpeed : CONTROLLER.walkSpeed) *
     (opts.holding ? CART_SPEED_MUL : 1) *
     (opts.slow ? SLOW_MUL : 1) *
     len
-  const face = aim
-  const previousYaw = body.yaw
-  const maxTurn = CONTROLLER.rotationSpeed * step * (opts.holding ? 0.75 : 1)
-  body.yaw = turnToward(body.yaw, face, maxTurn)
-  if (opts.holding && !canOccupy(body.x, body.z, body.yaw, true, blocks)) body.yaw = previousYaw
+  const face = moving ? Math.atan2(wx, wz) : body.yaw
+  const maxTurn = CONTROLLER.rotationSpeed * step
+  let turned = turnToward(body.yaw, face, maxTurn)
+  if (opts.holding && !canOccupy(body.x, body.z, turned, true, blocks)) {
+    const half = turnToward(body.yaw, face, maxTurn * 0.45)
+    turned = canOccupy(body.x, body.z, half, true, blocks) ? half : body.yaw
+  }
+  body.yaw = turned
 
   const accel = (moving ? CONTROLLER.acceleration : CONTROLLER.deceleration) * (body.grounded ? 1 : CONTROLLER.airControl)
   const k = 1 - Math.exp(-accel * step)
